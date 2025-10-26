@@ -1,0 +1,27 @@
+package main
+
+const (
+	loginUrl        = "https://zjuam.zju.edu.cn/cas/login?service=http://tyys.zju.edu.cn/venue-server/sso/manageLogin"
+	pubKeyUrl       = "https://zjuam.zju.edu.cn/cas/v2/getPubKey"
+	baseUrl         = "http://tyys.zju.edu.cn/venue-server"
+	studentUrl      = "/api/venue/students/"
+	teacherUrl      = "/api/venue/teachers/"
+	tokenUrl        = "http://tyys.zju.edu.cn/venue-server/api/login"
+	buddiesUrl      = "http://tyys.zju.edu.cn/venue-server/api/vip/view/buddy_no"
+	buddiesListUrl  = "http://tyys.zju.edu.cn/venue-server/api/buddies"
+	venueInfoUrl    = "http://tyys.zju.edu.cn/venue-server/api/reservation/day/info"
+	venueOrderUrl   = "http://tyys.zju.edu.cn/venue-server/api/reservation/order/info"
+	submitUrl       = "http://tyys.zju.edu.cn/venue-server/api/reservation/order/submit"
+	PayUrl          = "http://tyys.zju.edu.cn/venue-server/api/venue/finances/order/pay"
+	oderUrl         = "http://tyys.zju.edu.cn/venue-server/api/orders/mine"
+	oderDetailUrl   = "http://tyys.zju.edu.cn/venue-server/api/venue/finances/order/detail"
+	oderCodeUrl     = "http://tyys.zju.edu.cn/venue-server/api/orders/code/"
+	cancelUrl       = "http://tyys.zju.edu.cn/venue-server/api/venue/finances/order/cancel"
+	captchaUrl      = "http://tyys.zju.edu.cn/venue-server/api/captcha/get"
+	checkCaptchaUrl = "http://tyys.zju.edu.cn/venue-server/api/captcha/check"
+	userAgent       = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36 Edg/128.0.0.0"
+	appKey          = "8fceb735082b5a529312040b58ea780b"
+	para            = "c640ca392cd45fb3a55b00a63a86c618"
+	// username        = "12107132"
+	// password        = "tuj8mza*prv1VTB*gku"
+)

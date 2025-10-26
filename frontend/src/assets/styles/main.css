@@ -1,0 +1,190 @@
+/* Element Plus 增强样式 */
+
+/* 主容器布局 */
+.main-container {
+  display: flex;
+  min-height: 100vh;
+  background-color: var(--background);
+}
+
+/* 统一内容区域样式 */
+.content {
+  flex: 1;
+  padding: 24px;
+  position: relative;
+  z-index: 1;
+}
+
+/* 页面标题 */
+.page-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 24px;
+}
+
+/* 卡片增强 */
+.el-card {
+  transition: all var(--transition-normal);
+}
+
+.el-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+/* 表格优化 */
+.el-table {
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.el-table thead {
+  font-weight: 600;
+}
+
+/* 按钮增强 */
+.el-button {
+  font-weight: 500;
+  transition: all var(--transition-normal);
+}
+
+.el-button:hover {
+  transform: translateY(-1px);
+}
+
+.el-button:active {
+  transform: translateY(0);
+}
+
+/* 表单优化 */
+.el-form-item__label {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+/* 输入框增强 */
+.el-input__inner {
+  transition: all var(--transition-fast);
+}
+
+/* 菜单优化 */
+.el-menu {
+  border-right: none;
+}
+
+.el-menu-item {
+  border-radius: var(--radius-md);
+  margin: 4px 8px;
+  transition: all var(--transition-fast);
+}
+
+/* 对话框优化 */
+.el-dialog {
+  border-radius: var(--radius-lg);
+}
+
+/* 标签增强 */
+.el-tag {
+  font-weight: 500;
+}
+
+/* 统计数字样式 */
+.el-statistic {
+  text-align: center;
+}
+
+.el-statistic__head {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.el-statistic__content {
+  font-size: 32px;
+  font-weight: 700;
+}
+
+/* 响应式布局 */
+@media (max-width: 768px) {
+  .content {
+    padding: 16px;
+  }
+
+  .el-card {
+    margin-bottom: 16px;
+  }
+
+  .page-title {
+    font-size: 20px;
+  }
+}
+
+/* 加载动画优化 */
+.el-loading-mask {
+  background-color: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(2px);
+}
+
+/* 消息提示优化 */
+.el-message {
+  min-width: 300px;
+  padding: 16px 20px;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+}
+
+/* 确认框优化 */
+.el-message-box {
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+
+/* 通用工具类 */
+.flex {
+  display: flex;
+}
+
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.gap-8 {
+  gap: 8px;
+}
+
+.gap-12 {
+  gap: 12px;
+}
+
+.gap-16 {
+  gap: 16px;
+}
+
+.gap-24 {
+  gap: 24px;
+}
+
+.mb-16 {
+  margin-bottom: 16px;
+}
+
+.mb-24 {
+  margin-bottom: 24px;
+}
+
+.mt-16 {
+  margin-top: 16px;
+}
+
+.mt-24 {
+  margin-top: 24px;
+}
