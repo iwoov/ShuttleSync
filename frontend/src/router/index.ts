@@ -9,6 +9,7 @@ import MyReservation from "@/views/MyReservation.vue";
 import VenueReservation from "@/views/VenueReservation.vue";
 import UserManagement from "@/views/UserManagement.vue";
 import MyAccount from "@/views/MyAccount.vue";
+import AllReservations from "@/views/AllReservations.vue";
 import { isAuthenticated, isAdmin as checkIsAdmin } from "@/utils/auth";
 
 const routes: RouteRecordRaw[] = [
@@ -37,6 +38,12 @@ const routes: RouteRecordRaw[] = [
     path: "/user-management",
     name: "UserManagement",
     component: UserManagement,
+    meta: { requiresAuth: true, requiresAdmin: true },
+  },
+  {
+    path: "/all-reservations",
+    name: "AllReservations",
+    component: AllReservations,
     meta: { requiresAuth: true, requiresAdmin: true },
   },
   {

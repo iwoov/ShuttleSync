@@ -25,13 +25,6 @@ jobs:
             cgo_enabled: 1
             cc: x86_64-linux-musl-gcc
             ldflags: "-linkmode=external -extldflags=-static"
-          - goos: linux
-            goarch: arm64
-            suffix: linux-arm64
-            ext: ""
-            cgo_enabled: 1
-            cc: aarch64-linux-musl-gcc
-            ldflags: "-linkmode=external -extldflags=-static"
           - goos: windows
             goarch: amd64
             suffix: windows-amd64

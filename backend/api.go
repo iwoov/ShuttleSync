@@ -3,13 +3,13 @@ package main
 import (
 	"crypto/md5"
 	"fmt"
+	"github.com/go-resty/resty/v2"
+	"github.com/valyala/fastjson"
 	"net/url"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
-	"github.com/go-resty/resty/v2"
-	"github.com/valyala/fastjson"
 )
 
 // fetchLoginInfo 获取token的接口 post
@@ -344,9 +344,9 @@ func fetchCaptcha(client *resty.Client) (*fastjson.Value, error) {
 		timeStamp := strconv.FormatInt(time.Now().UnixMilli(), 10)
 		data := map[string]string{
 			"captchaType": "clickWord",
-			"clientUid": "point-591fcbdd-da39-40d9-b188-91af1b5d7171",
-			"ts": timeStamp,
-			"nocache": timeStamp,
+			"clientUid":   "point-591fcbdd-da39-40d9-b188-91af1b5d7171",
+			"ts":          timeStamp,
+			"nocache":     timeStamp,
 		}
 		parsedURL, err := url.Parse(captchaUrl)
 		if err != nil {
@@ -404,7 +404,7 @@ func fetchOderdetail(client *resty.Client, tradeNo string) (*fastjson.Value, err
 		timeStamp := strconv.FormatInt(time.Now().UnixMilli(), 10)
 		data := map[string]string{
 			"venueTradeNo": tradeNo,
-			"nocache": timeStamp,
+			"nocache":      timeStamp,
 		}
 		parsedURL, err := url.Parse(oderDetailUrl)
 		if err != nil {

@@ -260,6 +260,31 @@ func getTaskList(c *gin.Context) {
 	})
 }
 
+// 获取所有用户的预约任务（管理员） /api/task/all
+func getAllTaskList(c *gin.Context) {
+	// 仅作为安全兜底：路由已加 AdminMiddleware，这里再检查一次可选的上下文标记
+	if isAdminVal, exists := c.Get("is_admin"); !exists || !isAdminVal.(bool) {
+		c.JSON(403, gin.H{
+			"message": "需要管理员权限",
+		})
+		return
+	}
+
+	taskInfoList, getTaskErr := getAllTaskListFromDb()
+	if getTaskErr != nil {
+		c.JSON(200, gin.H{
+			"message": getTaskErr.Error(),
+		})
+		return
+	}
+	c.JSON(200, gin.H{
+		"message": "success",
+		"data": gin.H{
+			"taskInfos": taskInfoList,
+		},
+	})
+}
+
 // 提交预约 /api/task/add
 func addTask(c *gin.Context) {
 	// 从上下文获取当前登录用户
@@ -310,52 +335,52 @@ func cancelTask(c *gin.Context) {
 // /api/tyys
 // 登录浙大体艺网站 /api/tyys/login
 func tyysLogin(c *gin.Context) {
-    var tyysAccount TyysAccount
-    c.ShouldBind(&tyysAccount)
-    _, userInfo, err := NewClient(tyysAccount.Username, tyysAccount.Password)
-    // 失败兜底：err 或 userInfo 为空 或 userId 为 0
-    if err != nil || userInfo == nil || userInfo.UserId == 0 {
-        var dataMsg string
-        if err != nil {
-            dataMsg = err.Error()
-        } else {
-            dataMsg = "用户名或密码错误"
-        }
-        c.JSON(200, gin.H{
-            "message": "登录失败",
-            "data":    dataMsg,
-        })
-        return
-    }
-    c.JSON(200, gin.H{
-        "message": "success",
-        "data":    userInfo,
-    })
+	var tyysAccount TyysAccount
+	c.ShouldBind(&tyysAccount)
+	_, userInfo, err := NewClient(tyysAccount.Username, tyysAccount.Password)
+	// 失败兜底：err 或 userInfo 为空 或 userId 为 0
+	if err != nil || userInfo == nil || userInfo.UserId == 0 {
+		var dataMsg string
+		if err != nil {
+			dataMsg = err.Error()
+		} else {
+			dataMsg = "用户名或密码错误"
+		}
+		c.JSON(200, gin.H{
+			"message": "登录失败",
+			"data":    dataMsg,
+		})
+		return
+	}
+	c.JSON(200, gin.H{
+		"message": "success",
+		"data":    userInfo,
+	})
 }
 
 // 获取同伴码 /api/tyys/buddy_num
 func getBuddyNum(c *gin.Context) {
-    var tyysAccount TyysAccount
-    c.ShouldBind(&tyysAccount)
-    _, BuddyInfo, err := NewClient(tyysAccount.Username, tyysAccount.Password)
-    // 失败兜底：err 或 BuddyInfo 为空 或 buddyNum 为空
-    if err != nil || BuddyInfo == nil || BuddyInfo.BuddyNum == "" {
-        var dataMsg string
-        if err != nil {
-            dataMsg = err.Error()
-        } else {
-            dataMsg = "登录失败或未获取到同伴码"
-        }
-        c.JSON(200, gin.H{
-            "message": "获取同伴码失败",
-            "data":    dataMsg,
-        })
-        return
-    }
-    c.JSON(200, gin.H{
-        "message": "success",
-        "data":    map[string]string{"buddy_num": BuddyInfo.BuddyNum, "buddy_id": strconv.FormatInt(BuddyInfo.UserId, 10)},
-    })
+	var tyysAccount TyysAccount
+	c.ShouldBind(&tyysAccount)
+	_, BuddyInfo, err := NewClient(tyysAccount.Username, tyysAccount.Password)
+	// 失败兜底：err 或 BuddyInfo 为空 或 buddyNum 为空
+	if err != nil || BuddyInfo == nil || BuddyInfo.BuddyNum == "" {
+		var dataMsg string
+		if err != nil {
+			dataMsg = err.Error()
+		} else {
+			dataMsg = "登录失败或未获取到同伴码"
+		}
+		c.JSON(200, gin.H{
+			"message": "获取同伴码失败",
+			"data":    dataMsg,
+		})
+		return
+	}
+	c.JSON(200, gin.H{
+		"message": "success",
+		"data":    map[string]string{"buddy_num": BuddyInfo.BuddyNum, "buddy_id": strconv.FormatInt(BuddyInfo.UserId, 10)},
+	})
 }
 
 // 获取预约码 /api/tyys/qr_code

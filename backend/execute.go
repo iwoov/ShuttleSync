@@ -2,14 +2,14 @@ package main
 
 import (
 	"fmt"
+	"github.com/go-resty/resty/v2"
+	"github.com/robfig/cron/v3"
+	"github.com/valyala/fastjson"
 	"log"
 	"math/rand"
 	"strconv"
 	"strings"
 	"time"
-	"github.com/go-resty/resty/v2"
-	"github.com/robfig/cron/v3"
-	"github.com/valyala/fastjson"
 )
 
 // getBuddyId 获取同伴id 不同于userid

@@ -28,6 +28,11 @@
         <span>用户管理</span>
       </el-menu-item>
 
+      <el-menu-item index="/all-reservations" v-if="isAdmin">
+        <el-icon><Tickets /></el-icon>
+        <span>全部预约</span>
+      </el-menu-item>
+
       <el-menu-item index="/my-account">
         <el-icon><User /></el-icon>
         <span>我的账户</span>
@@ -51,7 +56,7 @@
 import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessageBox, ElMessage } from 'element-plus'
-import { Calendar, OfficeBuilding, UserFilled, User, SwitchButton } from '@element-plus/icons-vue'
+import { Calendar, OfficeBuilding, UserFilled, User, SwitchButton, Tickets } from '@element-plus/icons-vue'
 import { logout } from '@/utils/api'
 import { isAdmin as checkIsAdmin } from '@/utils/auth'
 

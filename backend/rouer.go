@@ -73,6 +73,8 @@ func router() {
 		{
 			// 预约任务-获取任务
 			task.GET("/list", getTaskList)
+			// 预约任务-获取所有用户预约任务（需要管理员权限）
+			task.GET("/all", auth.AdminMiddleware(), getAllTaskList)
 			// 预约任务-提交预约
 			task.POST("/add", addTask)
 			// 预约任务-预约取消

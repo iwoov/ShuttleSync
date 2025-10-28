@@ -241,6 +241,25 @@ func getTaskListFromDb(username string) ([]TaskInfoDb, error) {
 	return taskInfos, nil
 }
 
+// getAllTaskListFromDb 获取所有用户的所有任务数据（管理员）
+func getAllTaskListFromDb() ([]TaskInfoDb, error) {
+	dbPath := "./database.db"
+	// 连接 SQLite 数据库
+	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect database: %v", err)
+	}
+
+	// 查询所有任务，按创建时间倒序
+	var taskInfos []TaskInfoDb
+	result := db.Order("create_time desc").Find(&taskInfos)
+	if result.Error != nil {
+		return nil, fmt.Errorf("error querying database: %v", result.Error)
+	}
+
+	return taskInfos, nil
+}
+
 // addRevserUser 增加一条预约用户数据
 func addRevserUser(lable, username, password, user string) error {
 	dbPath := "./database.db"

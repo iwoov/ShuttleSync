@@ -24,32 +24,32 @@ func NewClient(username, password string) (*resty.Client, *UserInfo, error) {
 	client.SetRedirectPolicy(resty.NoRedirectPolicy()) // 禁用自动重定向
 
 	// 预认证 获取密码加密参数
-    execution, pubKey := preAuth(client)
+	execution, pubKey := preAuth(client)
 	// 加密密码
 	password_encrypt := encryptPassword(pubKey, userInfo.Password)
-	// 获取tiketUrl 
-    tiketUrl := getTiketUrl(client, userInfo.Username, password_encrypt, execution)
-    if tiketUrl == "" {
-        return nil, nil, fmt.Errorf("login failed: unexpected login response (check username/password)")
-    }
-    log.Println(tiketUrl)
+	// 获取tiketUrl
+	tiketUrl := getTiketUrl(client, userInfo.Username, password_encrypt, execution)
+	if tiketUrl == "" {
+		return nil, nil, fmt.Errorf("login failed: unexpected login response (check username/password)")
+	}
+	log.Println(tiketUrl)
 	// 获取jsessionIdUrl
-    jsessionIdUrl := getJsessionIdUrl(client, tiketUrl)
-    if jsessionIdUrl == "" {
-        return nil, nil, fmt.Errorf("login failed: session redirect missing")
-    }
-    log.Println(jsessionIdUrl)
+	jsessionIdUrl := getJsessionIdUrl(client, tiketUrl)
+	if jsessionIdUrl == "" {
+		return nil, nil, fmt.Errorf("login failed: session redirect missing")
+	}
+	log.Println(jsessionIdUrl)
 	// 获取oauthTokenUrl
-    oauthTokenUrl := getOauthToken(client, jsessionIdUrl)
-    if oauthTokenUrl == "" {
-        return nil, nil, fmt.Errorf("login failed: oauth token redirect missing")
-    }
-    log.Println(oauthTokenUrl)
-    // 获取oauthToken
-    oauthToken, err := extractOauthToken(oauthTokenUrl)
-    if err != nil {
-        return nil, nil, err
-    }
+	oauthTokenUrl := getOauthToken(client, jsessionIdUrl)
+	if oauthTokenUrl == "" {
+		return nil, nil, fmt.Errorf("login failed: oauth token redirect missing")
+	}
+	log.Println(oauthTokenUrl)
+	// 获取oauthToken
+	oauthToken, err := extractOauthToken(oauthTokenUrl)
+	if err != nil {
+		return nil, nil, err
+	}
 	// 获取登录信息
 	loginInfoResponse, err := fetchLoginInfo(client, oauthToken)
 	if err != nil {
@@ -63,11 +63,11 @@ func NewClient(username, password string) (*resty.Client, *UserInfo, error) {
 	userInfo.Name = string(loginInfoResponse.GetStringBytes("data", "name"))
 	userInfo.Role = loginInfoResponse.GetInt64("data", "role")
 	// 获取同伴码
-    buddiesResponse, err := fetchBuddies(client)
-    if err != nil {
-        log.Println(err)
-        return nil, nil, err
-    }
+	buddiesResponse, err := fetchBuddies(client)
+	if err != nil {
+		log.Println(err)
+		return nil, nil, err
+	}
 	userInfo.BuddyNum = string(buddiesResponse.GetStringBytes("data"))
 	// 获取个人信息
 	var personalInfoUrl string

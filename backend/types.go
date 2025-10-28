@@ -89,8 +89,8 @@ type UserDb struct {
 	Username   string    `gorm:"not null;unique" json:"username"` // 必填且唯一
 	Password   string    `gorm:"not null" json:"password"`
 	CaptchaAPI string    `gorm:"not null" json:"captcha_api"`
-	IsAdmin    bool      `gorm:"not null;default:false" json:"is_admin"`  // 必填
-	IsDelete   bool      `gorm:"not null;default:false" json:"is_delete"`  // 必填
+	IsAdmin    bool      `gorm:"not null;default:false" json:"is_admin"`    // 必填
+	IsDelete   bool      `gorm:"not null;default:false" json:"is_delete"`   // 必填
 	CreatedAt  time.Time `gorm:"autoCreateTime;not null" json:"created_at"` // 自动设置创建时间
 }
 

@@ -46,6 +46,14 @@
             />
 
             <el-table-column
+                v-if="showOwner"
+                prop="owner"
+                label="所属用户"
+                width="140"
+                align="center"
+            />
+
+            <el-table-column
                 prop="date"
                 label="预约日期"
                 width="120"
@@ -195,6 +203,10 @@ defineProps({
         default: () => [],
     },
     loading: {
+        type: Boolean,
+        default: false,
+    },
+    showOwner: {
         type: Boolean,
         default: false,
     },
