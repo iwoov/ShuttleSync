@@ -295,6 +295,25 @@ export async function getBargainTaskDetail(taskId: string) {
 }
 
 /**
+ * 更新捡漏任务
+ */
+export async function updateBargainTask(
+  taskId: string,
+  data: {
+    account_id_1: number;
+    account_id_2: number;
+    venue_site_id: string;
+    reservation_date: string;
+    site_name?: string;
+    reservation_time?: string;
+    scan_interval: number;
+    deadline?: string;
+  },
+) {
+  return put(`/bargain/${taskId}`, data);
+}
+
+/**
  * 取消捡漏任务
  */
 export async function cancelBargainTask(taskId: string) {

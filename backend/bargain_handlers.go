@@ -200,3 +200,52 @@ func getAllBargainTasksHandler(c *gin.Context) {
 		"data":    tasks,
 	})
 }
+
+// updateBargainTaskHandler 更新捡漏任务
+// PUT /api/bargain/:id
+func updateBargainTaskHandler(c *gin.Context) {
+	username, exists := c.Get("username")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"message": "未授权",
+		})
+		return
+	}
+
+	taskID := c.Param("id")
+	if taskID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": "任务ID不能为空",
+		})
+		return
+	}
+
+	var req BargainTaskRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": "请求参数错误",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	// 验证两个账号不能相同
+	if req.AccountID1 == req.AccountID2 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": "两个预约账号不能相同",
+		})
+		return
+	}
+
+	if err := updateBargainTask(taskID, req, username.(string)); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": "更新任务失败",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "任务更新成功",
+	})
+}

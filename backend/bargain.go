@@ -231,7 +231,7 @@ func scanAndReserve(taskID string) error {
 	log.Printf("开始扫描场地 [TaskID: %s, 日期: %s]", taskID, task.ReservationDate)
 
 	// 使用第一个账号登录并获取场地信息
-	client, err := NewClient(account1.Username, account1.Password)
+	client, _, err := NewClient(account1.Username, account1.Password)
 	if err != nil {
 		logBargainScan(taskID, 0, false, "账号1登录失败", err.Error())
 		return err
@@ -373,22 +373,22 @@ func executeReservation(account1 UserInfoDb, account2 UserInfoDb, buddyInfo *Use
 	// 创建临时TaskInfo用于复用现有预约逻辑
 	// 账号1作为主预约账号，账号2提供同伴码
 	taskInfo := TaskInfoDb{
-		User:            task.User,
-		Username:        account1.Username,  // 主预约账号
-		Password:        account1.Password,
-		UserPhone:       account1.Phone,
-		CaptchaAPI:      captchaAPI,
-		BuddyUserID:     fmt.Sprintf("%d", buddyInfo.UserId), // 账号2的UserID
-		BuddyNum:        buddyInfo.BuddyNum,                  // 账号2的BuddyNum
-		VenueSiteID:     task.VenueSiteID,
-		ReservationDate: task.ReservationDate,
-		ReservationTime: slot.TimeSlot,
-		SiteName:        slot.SiteName,
-		TaskID:          task.TaskID + "_" + uuid.New().String()[:8],
-		IsFinished:      false,
+		User:               task.User,
+		Username:           account1.Username, // 主预约账号
+		Password:           account1.Password,
+		UserPhone:          account1.Phone,
+		CaptchaAPI:         captchaAPI,
+		BuddyUserID:        fmt.Sprintf("%d", buddyInfo.UserId), // 账号2的UserID
+		BuddyNum:           buddyInfo.BuddyNum,                  // 账号2的BuddyNum
+		VenueSiteID:        task.VenueSiteID,
+		ReservationDate:    task.ReservationDate,
+		ReservationTime:    slot.TimeSlot,
+		SiteName:           slot.SiteName,
+		TaskID:             task.TaskID + "_" + uuid.New().String()[:8],
+		IsFinished:         false,
 		InstantReservation: true,
-		SiteId:          slot.SiteID,
-		TimeId:          slot.TimeID,
+		SiteId:             slot.SiteID,
+		TimeId:             slot.TimeID,
 	}
 
 	log.Printf("开始预约 [主账号: %s, 同伴: %s, 场地: %s, 时间: %s]",
@@ -583,4 +583,83 @@ func getAllBargainTasks() ([]BargainTaskDb, error) {
 	}
 
 	return tasks, nil
+}
+
+// updateBargainTask 更新捡漏任务
+func updateBargainTask(taskID string, req BargainTaskRequest, username string) error {
+	db, err := openDB()
+	if err != nil {
+		return err
+	}
+
+	// 获取原任务
+	var task BargainTaskDb
+	if err := db.Where("task_id = ? AND user = ?", taskID, username).First(&task).Error; err != nil {
+		return fmt.Errorf("任务不存在或无权限")
+	}
+
+	// 只能更新未完成的任务
+	if task.Status != "active" {
+		return fmt.Errorf("只能更新运行中的任务")
+	}
+
+	// 验证两个账号是否存在且属于当前用户
+	var account1, account2 UserInfoDb
+	if err := db.Where("id = ? AND user = ? AND is_delete = false", req.AccountID1, username).First(&account1).Error; err != nil {
+		return fmt.Errorf("账号1不存在或无权限")
+	}
+	if err := db.Where("id = ? AND user = ? AND is_delete = false", req.AccountID2, username).First(&account2).Error; err != nil {
+		return fmt.Errorf("账号2不存在或无权限")
+	}
+
+	// 验证预约日期
+	reservationDate, err := time.Parse("2006-01-02", req.ReservationDate)
+	if err != nil {
+		return fmt.Errorf("预约日期格式错误")
+	}
+	if reservationDate.Before(time.Now().Truncate(24 * time.Hour)) {
+		return fmt.Errorf("预约日期必须在当前日期之后")
+	}
+
+	// 解析截止时间
+	var deadline time.Time
+	if req.Deadline != "" {
+		deadline, err = time.Parse("2006-01-02 15:04:05", req.Deadline)
+		if err != nil {
+			return fmt.Errorf("截止时间格式错误")
+		}
+		if deadline.Before(time.Now()) {
+			return fmt.Errorf("截止时间必须在当前时间之后")
+		}
+		maxDeadline := reservationDate.Add(24*time.Hour - time.Second)
+		if deadline.After(maxDeadline) {
+			return fmt.Errorf("截止时间不能晚于预约日期当天")
+		}
+	}
+
+	// 停止旧的调度器
+	stopBargainScheduler(taskID)
+
+	// 更新任务信息
+	updates := map[string]interface{}{
+		"account_id1":      req.AccountID1,
+		"account_id2":      req.AccountID2,
+		"venue_site_id":    req.VenueSiteID,
+		"reservation_date": req.ReservationDate,
+		"site_name":        req.SiteName,
+		"reservation_time": req.ReservationTime,
+		"scan_interval":    req.ScanInterval,
+		"deadline":         deadline,
+	}
+
+	if err := db.Model(&task).Updates(updates).Error; err != nil {
+		return fmt.Errorf("更新任务失败: %v", err)
+	}
+
+	// 重新启动调度器
+	if err := startBargainScheduler(taskID); err != nil {
+		log.Printf("重启定时任务失败: %v", err)
+	}
+
+	return nil
 }

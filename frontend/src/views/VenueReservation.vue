@@ -1,419 +1,504 @@
 <template>
     <Layout>
         <el-main class="content">
-                <el-card class="main-card" shadow="hover">
-                    <template #header>
-                        <div class="card-header">
-                            <div class="header-title">
-                                <el-icon><OfficeBuilding /></el-icon>
-                                <span>场馆预约</span>
-                            </div>
-                            <div class="button-group">
-                                <el-button
-                                    type="primary"
-                                    :icon="Plus"
-                                    @click="addNewReservation"
-                                >
-                                    普通模式
-                                </el-button>
-                                <el-button
-                                    type="warning"
-                                    :icon="Clock"
-                                    @click="showDevelopingMessage"
-                                >
-                                    定时模式
-                                </el-button>
-                                <el-button
-                                    type="info"
-                                    :icon="Search"
-                                    @click="router.push('/bargain-mode')"
-                                >
-                                    捡漏模式
-                                </el-button>
-                            </div>
+            <el-card class="main-card" shadow="hover">
+                <template #header>
+                    <div class="card-header">
+                        <div class="header-title">
+                            <el-icon><OfficeBuilding /></el-icon>
+                            <span>普通预约</span>
                         </div>
-                    </template>
-
-                    <div class="cards-grid">
-                        <el-card
-                            v-for="(reservation, index) in reservations"
-                            :key="index"
-                            class="reservation-card"
-                            shadow="hover"
-                        >
-                            <el-form
-                                :model="reservation"
-                                label-width="60px"
-                                @submit.prevent="submitReservation(index)"
+                        <div class="button-group">
+                            <el-button
+                                type="primary"
+                                :icon="Plus"
+                                @click="showCreateDialog = true"
                             >
-                                <!-- 预约账号选择 -->
-                                <el-form-item label="预约账号">
-                                    <el-select
-                                        v-if="!reservation.accountId"
-                                        v-model="reservation.accountId"
-                                        placeholder="选择预约账号"
-                                        style="width: 100%"
-                                    >
-                                        <el-option
-                                            v-for="account in accounts"
-                                            :key="account.ID"
-                                            :label="`${account.Lable} (${account.Username})`"
-                                            :value="account.Username"
-                                        />
-                                    </el-select>
-                                    <div v-else class="account-info-group">
-                                        <el-input
-                                            :model-value="
-                                                getSelectedAccount(
-                                                    reservation.accountId,
-                                                ).Username
-                                            "
-                                            readonly
-                                            style="width: 120px"
-                                        />
-                                        <el-input
-                                            :model-value="
-                                                getSelectedAccount(
-                                                    reservation.accountId,
-                                                ).Password
-                                            "
-                                            :type="
-                                                showPassword
-                                                    ? 'text'
-                                                    : 'password'
-                                            "
-                                            readonly
-                                            style="width: 120px"
-                                        >
-                                            <template #suffix>
-                                                <el-icon
-                                                    @click="togglePassword"
-                                                    style="cursor: pointer"
-                                                >
-                                                    <component
-                                                        :is="
-                                                            showPassword
-                                                                ? 'Hide'
-                                                                : 'View'
-                                                        "
-                                                    />
-                                                </el-icon>
-                                            </template>
-                                        </el-input>
-                                        <el-button
-                                            size="small"
-                                            :type="
-                                                getLoginButtonType(
-                                                    getSelectedAccount(
-                                                        reservation.accountId,
-                                                    ).loginStatus,
-                                                )
-                                            "
-                                            :icon="
-                                                getLoginButtonIcon(
-                                                    getSelectedAccount(
-                                                        reservation.accountId,
-                                                    ).loginStatus,
-                                                )
-                                            "
-                                            @click="
-                                                testLogin(
-                                                    reservation.accountId,
-                                                    false,
-                                                )
-                                            "
-                                            style="flex-shrink: 0; width: 100px; white-space: nowrap"
-                                        >
-                                            {{
-                                                getLoginButtonText(
-                                                    getSelectedAccount(
-                                                        reservation.accountId,
-                                                    ).loginStatus,
-                                                )
-                                            }}
-                                        </el-button>
-                                    </div>
-                                </el-form-item>
-
-                                <!-- 同伴账号选择 -->
-                                <el-form-item label="同伴账号">
-                                    <el-select
-                                        v-if="!reservation.partnerId"
-                                        v-model="reservation.partnerId"
-                                        placeholder="选择同伴账号"
-                                        style="width: 100%"
-                                    >
-                                        <el-option
-                                            v-for="partner in partners"
-                                            :key="partner.ID"
-                                            :label="`${partner.Lable} (${partner.Username})`"
-                                            :value="partner.Username"
-                                        />
-                                    </el-select>
-                                    <div v-else class="account-info-group">
-                                        <el-input
-                                            :model-value="
-                                                getSelectedAccount(
-                                                    reservation.partnerId,
-                                                ).Username
-                                            "
-                                            readonly
-                                            style="width: 120px"
-                                        />
-                                        <el-input
-                                            :model-value="
-                                                getSelectedAccount(
-                                                    reservation.partnerId,
-                                                ).Password
-                                            "
-                                            :type="
-                                                showPartnerPassword
-                                                    ? 'text'
-                                                    : 'password'
-                                            "
-                                            readonly
-                                            style="width: 120px"
-                                        >
-                                            <template #suffix>
-                                                <el-icon
-                                                    @click="
-                                                        togglePartnerPassword
-                                                    "
-                                                    style="cursor: pointer"
-                                                >
-                                                    <component
-                                                        :is="
-                                                            showPartnerPassword
-                                                                ? 'Hide'
-                                                                : 'View'
-                                                        "
-                                                    />
-                                                </el-icon>
-                                            </template>
-                                        </el-input>
-                                        <el-button
-                                            size="small"
-                                            :type="
-                                                getLoginButtonType(
-                                                    getSelectedAccount(
-                                                        reservation.partnerId,
-                                                    ).loginStatus,
-                                                )
-                                            "
-                                            :icon="
-                                                getLoginButtonIcon(
-                                                    getSelectedAccount(
-                                                        reservation.partnerId,
-                                                    ).loginStatus,
-                                                )
-                                            "
-                                            @click="
-                                                testLogin(
-                                                    reservation.partnerId,
-                                                    true,
-                                                )
-                                            "
-                                            style="flex-shrink: 0; width: 100px; white-space: nowrap"
-                                        >
-                                            {{
-                                                getLoginButtonText(
-                                                    getSelectedAccount(
-                                                        reservation.partnerId,
-                                                    ).loginStatus,
-                                                )
-                                            }}
-                                        </el-button>
-                                    </div>
-                                </el-form-item>
-
-                                <!-- 场馆场地选择 -->
-                                <el-form-item label="场馆场地">
-                                    <div class="venue-group">
-                                        <el-select
-                                            v-model="reservation.venueId"
-                                            placeholder="选择场馆"
-                                            @change="fetchLocations(index)"
-                                            style="flex: 1"
-                                        >
-                                            <el-option
-                                                v-for="venue in venues"
-                                                :key="venue.id"
-                                                :label="venue.name"
-                                                :value="venue.id"
-                                            />
-                                        </el-select>
-                                        <el-select
-                                            v-model="reservation.locationId"
-                                            placeholder="选择场地"
-                                            style="flex: 1"
-                                        >
-                                            <el-option
-                                                v-for="location in locations[
-                                                    index
-                                                ]"
-                                                :key="location.id"
-                                                :label="location.name"
-                                                :value="location.id"
-                                            />
-                                        </el-select>
-                                    </div>
-                                </el-form-item>
-
-                                <!-- 日期时间选择 -->
-                                <el-form-item label="预约时间">
-                                    <div class="datetime-group">
-                                        <el-date-picker
-                                            v-model="reservation.date"
-                                            type="date"
-                                            placeholder="选择日期"
-                                            format="YYYY-MM-DD"
-                                            value-format="YYYY-MM-DD"
-                                            :disabled-date="disabledDate"
-                                            @change="fetchTimeSlots(index)"
-                                            style="flex: 2"
-                                        />
-                                        <el-select
-                                            v-model="reservation.timeSlot"
-                                            placeholder="选择时间"
-                                            style="flex: 3"
-                                        >
-                                            <el-option
-                                                v-for="slot in timeSlots[index]"
-                                                :key="slot.value"
-                                                :label="slot.label"
-                                                :value="slot.value"
-                                            />
-                                        </el-select>
-                                    </div>
-                                </el-form-item>
-
-                                <!-- 提交按钮 -->
-                                <el-form-item>
-                                    <el-button
-                                        type="primary"
-                                        :icon="Check"
-                                        style="width: 100%"
-                                        @click="submitReservation(index)"
-                                        :disabled="!canSubmit(index)"
-                                        size="large"
-                                    >
-                                        立即提交预约
-                                    </el-button>
-                                    <el-text
-                                        v-if="!canSubmit(index)"
-                                        type="info"
-                                        size="small"
-                                        style="margin-top: 8px; display: block"
-                                    >
-                                        {{ getSubmitButtonTitle(index) }}
-                                    </el-text>
-                                </el-form-item>
-                            </el-form>
-                        </el-card>
+                                创建预约
+                            </el-button>
+                            <el-button
+                                :icon="Refresh"
+                                @click="fetchTasks"
+                                :loading="loading"
+                            >
+                                刷新
+                            </el-button>
+                        </div>
                     </div>
-                </el-card>
+                </template>
+
+                <!-- 预约任务列表 -->
+                <el-table :data="tasks" style="width: 100%" v-loading="loading">
+                    <el-table-column prop="task_id" label="任务ID" width="200">
+                        <template #default="{ row }">
+                            <el-text truncated>{{ row.TaskID }}</el-text>
+                        </template>
+                    </el-table-column>
+
+                    <el-table-column
+                        prop="username"
+                        label="预约账号"
+                        width="150"
+                    />
+
+                    <el-table-column label="场馆/场地" width="150">
+                        <template #default="{ row }">
+                            <div>{{ getVenueName(row.VenueSiteID) }}</div>
+                            <el-text type="info" size="small">{{
+                                row.SiteName
+                            }}</el-text>
+                        </template>
+                    </el-table-column>
+
+                    <el-table-column label="预约时间" width="180">
+                        <template #default="{ row }">
+                            <div>{{ row.ReservationDate }}</div>
+                            <el-text type="info" size="small">{{
+                                row.ReservationTime
+                            }}</el-text>
+                        </template>
+                    </el-table-column>
+
+                    <el-table-column label="状态" width="100">
+                        <template #default="{ row }">
+                            <el-tag
+                                :type="getStatusType(row.IsFinished)"
+                                size="small"
+                            >
+                                {{ row.IsFinished ? "已完成" : "进行中" }}
+                            </el-tag>
+                        </template>
+                    </el-table-column>
+
+                    <el-table-column
+                        prop="CreateTime"
+                        label="创建时间"
+                        width="180"
+                    >
+                        <template #default="{ row }">
+                            {{ formatTime(row.CreateTime) }}
+                        </template>
+                    </el-table-column>
+
+                    <el-table-column label="操作" width="150" fixed="right">
+                        <template #default="{ row }">
+                            <el-button
+                                type="primary"
+                                size="small"
+                                :icon="View"
+                                @click="viewTaskDetail(row)"
+                            >
+                                详情
+                            </el-button>
+                        </template>
+                    </el-table-column>
+                </el-table>
+            </el-card>
+
+            <!-- 创建预约对话框 -->
+            <el-dialog
+                v-model="showCreateDialog"
+                title="创建普通预约"
+                width="600px"
+                :close-on-click-modal="false"
+            >
+                <el-form
+                    :model="newReservation"
+                    :rules="rules"
+                    ref="reservationFormRef"
+                    label-width="120px"
+                >
+                    <!-- 预约账号选择 -->
+                    <el-form-item label="预约账号" prop="accountId">
+                        <el-select
+                            v-model="newReservation.accountId"
+                            placeholder="选择预约账号"
+                            style="width: 100%"
+                            @change="onAccountChange"
+                        >
+                            <el-option
+                                v-for="account in accounts"
+                                :key="account.ID"
+                                :label="`${account.Lable} (${account.Username})`"
+                                :value="account.Username"
+                            />
+                        </el-select>
+                    </el-form-item>
+
+                    <!-- 账号信息显示 -->
+                    <el-form-item label="账号信息" v-if="selectedAccount">
+                        <div class="account-info-display">
+                            <el-input
+                                :model-value="selectedAccount.Username"
+                                readonly
+                                style="width: 150px"
+                            />
+                            <el-input
+                                :model-value="selectedAccount.Password"
+                                :type="showPassword ? 'text' : 'password'"
+                                readonly
+                                style="width: 150px"
+                            >
+                                <template #suffix>
+                                    <el-icon
+                                        @click="togglePassword"
+                                        style="cursor: pointer"
+                                    >
+                                        <component
+                                            :is="showPassword ? 'Hide' : 'View'"
+                                        />
+                                    </el-icon>
+                                </template>
+                            </el-input>
+                            <el-button
+                                size="small"
+                                :type="
+                                    getLoginButtonType(
+                                        selectedAccount.loginStatus,
+                                    )
+                                "
+                                :icon="
+                                    getLoginButtonIcon(
+                                        selectedAccount.loginStatus,
+                                    )
+                                "
+                                @click="testLogin(false)"
+                            >
+                                {{
+                                    getLoginButtonText(
+                                        selectedAccount.loginStatus,
+                                    )
+                                }}
+                            </el-button>
+                        </div>
+                    </el-form-item>
+
+                    <!-- 同伴账号选择 -->
+                    <el-form-item label="同伴账号" prop="partnerId">
+                        <el-select
+                            v-model="newReservation.partnerId"
+                            placeholder="选择同伴账号"
+                            style="width: 100%"
+                            @change="onPartnerChange"
+                        >
+                            <el-option
+                                v-for="partner in filteredPartners"
+                                :key="partner.ID"
+                                :label="`${partner.Lable} (${partner.Username})`"
+                                :value="partner.Username"
+                            />
+                        </el-select>
+                    </el-form-item>
+
+                    <!-- 同伴账号信息显示 -->
+                    <el-form-item label="同伴信息" v-if="selectedPartner">
+                        <div class="account-info-display">
+                            <el-input
+                                :model-value="selectedPartner.Username"
+                                readonly
+                                style="width: 150px"
+                            />
+                            <el-input
+                                :model-value="selectedPartner.Password"
+                                :type="
+                                    showPartnerPassword ? 'text' : 'password'
+                                "
+                                readonly
+                                style="width: 150px"
+                            >
+                                <template #suffix>
+                                    <el-icon
+                                        @click="togglePartnerPassword"
+                                        style="cursor: pointer"
+                                    >
+                                        <component
+                                            :is="
+                                                showPartnerPassword
+                                                    ? 'Hide'
+                                                    : 'View'
+                                            "
+                                        />
+                                    </el-icon>
+                                </template>
+                            </el-input>
+                            <el-button
+                                size="small"
+                                :type="
+                                    getLoginButtonType(
+                                        selectedPartner.loginStatus,
+                                    )
+                                "
+                                :icon="
+                                    getLoginButtonIcon(
+                                        selectedPartner.loginStatus,
+                                    )
+                                "
+                                @click="testLogin(true)"
+                            >
+                                {{
+                                    getLoginButtonText(
+                                        selectedPartner.loginStatus,
+                                    )
+                                }}
+                            </el-button>
+                        </div>
+                    </el-form-item>
+
+                    <!-- 场馆选择 -->
+                    <el-form-item label="场馆" prop="venueId">
+                        <el-select
+                            v-model="newReservation.venueId"
+                            placeholder="选择场馆"
+                            style="width: 100%"
+                            @change="onVenueChange"
+                        >
+                            <el-option label="体育馆" :value="1" />
+                            <el-option label="风雨操场" :value="2" />
+                        </el-select>
+                    </el-form-item>
+
+                    <!-- 场地选择 -->
+                    <el-form-item label="场地号" prop="locationId">
+                        <el-select
+                            v-model="newReservation.locationId"
+                            placeholder="选择场地"
+                            style="width: 100%"
+                        >
+                            <el-option
+                                v-for="location in availableLocations"
+                                :key="location.value"
+                                :label="location.label"
+                                :value="location.value"
+                            />
+                        </el-select>
+                    </el-form-item>
+
+                    <!-- 预约日期 -->
+                    <el-form-item label="预约日期" prop="date">
+                        <el-date-picker
+                            v-model="newReservation.date"
+                            type="date"
+                            placeholder="选择日期"
+                            format="YYYY-MM-DD"
+                            value-format="YYYY-MM-DD"
+                            :disabled-date="disabledDate"
+                            style="width: 100%"
+                        />
+                    </el-form-item>
+
+                    <!-- 时间段 -->
+                    <el-form-item label="时间段" prop="timeSlot">
+                        <el-select
+                            v-model="newReservation.timeSlot"
+                            placeholder="选择时间段"
+                            style="width: 100%"
+                        >
+                            <el-option
+                                v-for="slot in timeSlots"
+                                :key="slot.value"
+                                :label="slot.label"
+                                :value="slot.value"
+                            />
+                        </el-select>
+                    </el-form-item>
+                </el-form>
+
+                <template #footer>
+                    <el-button @click="showCreateDialog = false"
+                        >取消</el-button
+                    >
+                    <el-button
+                        type="primary"
+                        @click="handleCreateReservation"
+                        :loading="creating"
+                        :disabled="!canSubmit"
+                    >
+                        创建预约
+                    </el-button>
+                </template>
+            </el-dialog>
+
+            <!-- 任务详情对话框 -->
+            <el-dialog
+                v-model="showDetailDialog"
+                title="预约详情"
+                width="700px"
+            >
+                <el-descriptions :column="2" border v-if="currentTask">
+                    <el-descriptions-item label="任务ID" :span="2">
+                        {{ currentTask.TaskID }}
+                    </el-descriptions-item>
+                    <el-descriptions-item label="预约账号">
+                        {{ currentTask.Username }}
+                    </el-descriptions-item>
+                    <el-descriptions-item label="状态">
+                        <el-tag :type="getStatusType(currentTask.IsFinished)">
+                            {{ currentTask.IsFinished ? "已完成" : "进行中" }}
+                        </el-tag>
+                    </el-descriptions-item>
+                    <el-descriptions-item label="场馆">
+                        {{ getVenueName(currentTask.VenueSiteID) }}
+                    </el-descriptions-item>
+                    <el-descriptions-item label="场地">
+                        {{ currentTask.SiteName }}
+                    </el-descriptions-item>
+                    <el-descriptions-item label="预约日期">
+                        {{ currentTask.ReservationDate }}
+                    </el-descriptions-item>
+                    <el-descriptions-item label="预约时间">
+                        {{ currentTask.ReservationTime }}
+                    </el-descriptions-item>
+                    <el-descriptions-item label="同伴ID">
+                        {{ currentTask.BuddyUserID }}
+                    </el-descriptions-item>
+                    <el-descriptions-item label="同伴码">
+                        {{ currentTask.BuddyNum }}
+                    </el-descriptions-item>
+                    <el-descriptions-item label="创建时间" :span="2">
+                        {{ formatTime(currentTask.CreateTime) }}
+                    </el-descriptions-item>
+                </el-descriptions>
+            </el-dialog>
         </el-main>
     </Layout>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
-import { useRouter } from "vue-router";
+import { ref, onMounted, computed } from "vue";
 import { ElMessage } from "element-plus";
 import {
     OfficeBuilding,
     Plus,
-    Clock,
-    Search,
-    Check,
+    Refresh,
+    View,
     Select,
     SuccessFilled,
     CircleClose,
 } from "@element-plus/icons-vue";
 import Layout from "@/components/Layout.vue";
-import Sidebar from "@/components/Sidebar.vue";
 import { get, post } from "@/utils/api";
 import { getUsername, getCaptchaApi } from "@/utils/auth";
 
-const router = useRouter();
-const accounts = ref([]);
-const partners = ref([]);
-const venues = ref([
-    { id: 1, name: "体育馆" },
-    { id: 2, name: "风雨操场" },
-]);
-const locations = ref({});
-const timeSlots = ref({});
-const reservations = ref([getEmptyReservation()]);
+// 状态
+const loading = ref(false);
+const creating = ref(false);
+const showCreateDialog = ref(false);
+const showDetailDialog = ref(false);
 const showPassword = ref(false);
 const showPartnerPassword = ref(false);
+
+const tasks = ref<any[]>([]);
+const accounts = ref<any[]>([]);
+const currentTask = ref<any>(null);
+const reservationFormRef = ref();
 const apiKey = ref(getCaptchaApi() || "");
 
-function getEmptyReservation() {
-    return {
-        accountId: "",
-        partnerId: "",
-        venueId: "",
-        locationId: "",
-        date: "",
-        timeSlot: "",
-        accountInfo: null,
-        partnerInfo: null,
-    };
-}
+// 新预约表单
+const newReservation = ref({
+    accountId: "",
+    partnerId: "",
+    venueId: null as number | null,
+    locationId: "",
+    date: "",
+    timeSlot: "",
+    accountInfo: null as any,
+    partnerInfo: null as any,
+});
 
-const disabledDate = (time) => {
+// 场地和时间段选项
+const availableLocations = ref<any[]>([]);
+const timeSlots = ref<any[]>([]);
+
+// 表单验证规则
+const rules = {
+    accountId: [
+        { required: true, message: "请选择预约账号", trigger: "change" },
+    ],
+    partnerId: [
+        { required: true, message: "请选择同伴账号", trigger: "change" },
+    ],
+    venueId: [{ required: true, message: "请选择场馆", trigger: "change" }],
+    locationId: [{ required: true, message: "请选择场地", trigger: "change" }],
+    date: [{ required: true, message: "请选择预约日期", trigger: "change" }],
+    timeSlot: [{ required: true, message: "请选择时间段", trigger: "change" }],
+};
+
+// 计算属性
+const selectedAccount = computed(() => {
+    return accounts.value.find(
+        (acc) => acc.Username === newReservation.value.accountId,
+    );
+});
+
+const selectedPartner = computed(() => {
+    return accounts.value.find(
+        (acc) => acc.Username === newReservation.value.partnerId,
+    );
+});
+
+const filteredPartners = computed(() => {
+    if (!newReservation.value.accountId) return accounts.value;
+    return accounts.value.filter(
+        (acc) => acc.Username !== newReservation.value.accountId,
+    );
+});
+
+const canSubmit = computed(() => {
+    return (
+        selectedAccount.value?.loginStatus === "success" &&
+        selectedPartner.value?.loginStatus === "success" &&
+        apiKey.value
+    );
+});
+
+// 禁用过去的日期
+const disabledDate = (time: Date) => {
     return time.getTime() < Date.now() - 8.64e7;
 };
 
-const addNewReservation = () => {
-    const newIndex = reservations.value.length;
-    reservations.value.push(getEmptyReservation());
-    locations.value[newIndex] = [];
-    timeSlots.value[newIndex] = [];
+// 切换密码显示
+const togglePassword = () => {
+    showPassword.value = !showPassword.value;
 };
 
-const fetchAccounts = async () => {
-    try {
-        const username = getUsername();
-        if (!username) {
-            ElMessage.error("获取账号列表失败，请重新登录");
-            return;
-        }
-        const data = await get("/account/list", { user: username });
-        if (data.message === "success") {
-            accounts.value = data.data.map((account) => ({
-                ...account,
-                loginStatus: null,
-            }));
-            partners.value = accounts.value;
-        } else {
-            throw new Error(data.message || "获取账号列表失败");
-        }
-    } catch (error) {
-        console.error("获取账号列表失败", error);
-        ElMessage.error(error.message || "获取账号列表失败");
+const togglePartnerPassword = () => {
+    showPartnerPassword.value = !showPartnerPassword.value;
+};
+
+// 场馆切换
+const onVenueChange = () => {
+    const venueId = newReservation.value.venueId;
+    if (!venueId) {
+        availableLocations.value = [];
+        newReservation.value.locationId = "";
+        return;
+    }
+
+    const locationCount = venueId === 1 ? 12 : 20;
+    availableLocations.value = Array.from(
+        { length: locationCount },
+        (_, i) => ({
+            value: `${i + 1}号`,
+            label: `${i + 1}号场地`,
+        }),
+    );
+
+    newReservation.value.locationId = "";
+};
+
+// 账号切换
+const onAccountChange = () => {
+    if (newReservation.value.partnerId === newReservation.value.accountId) {
+        newReservation.value.partnerId = "";
     }
 };
 
-const fetchLocations = (index) => {
-    const venueId = reservations.value[index].venueId;
-    if (!venueId) return;
-
-    const locationCount = Number(venueId) === 1 ? 12 : 20;
-    locations.value[index] = Array.from({ length: locationCount }, (_, i) => ({
-        id: i + 1,
-        name: `${i + 1}号场地`,
-    }));
+const onPartnerChange = () => {
+    // 可以添加额外的逻辑
 };
 
-const fetchTimeSlots = (index) => {
-    if (
-        !reservations.value[index].locationId ||
-        !reservations.value[index].date
-    )
-        return;
-
+// 初始化时间段
+const initTimeSlots = () => {
     const slots = [];
     let hour = 8;
     let minute = 30;
@@ -436,100 +521,58 @@ const fetchTimeSlots = (index) => {
         hour += 1;
     }
 
-    timeSlots.value[index] = slots;
+    timeSlots.value = slots;
 };
 
-const submitReservation = async (index) => {
-    const reservation = reservations.value[index];
-
-    if (!reservation.accountInfo || !reservation.partnerInfo) {
-        ElMessage.warning("请先完成账号登录测试");
-        return;
-    }
-
+// 获取账号列表
+const fetchAccounts = async () => {
     try {
-        const venue_site_id = Number(reservation.venueId) === 1 ? "143" : "23";
-        const currentUser = getUsername();
-        if (!currentUser) {
-            ElMessage.error("请先登录后再提交预约");
+        const username = getUsername();
+        if (!username) {
+            ElMessage.error("获取账号列表失败，请重新登录");
             return;
         }
-
-        const requestData = {
-            user: currentUser,
-            username: reservation.accountInfo.username,
-            password: reservation.accountInfo.password,
-            user_phone: reservation.accountInfo.phone,
-            captcha_api: apiKey.value,
-            buddy_user_id: reservation.partnerInfo.buddy_id,
-            buddy_num: reservation.partnerInfo.buddy_num,
-            venue_site_id: venue_site_id,
-            reservation_date: reservation.date,
-            reservation_time: reservation.timeSlot,
-            site_name: `${reservation.locationId}号`,
-        };
-
-        const data = await post("/task/add", requestData);
+        const data = await get("/account/list", { user: username });
         if (data.message === "success") {
-            ElMessage.success("预约提交成功");
-            reservations.value[index] = getEmptyReservation();
+            accounts.value = data.data.map((account: any) => ({
+                ...account,
+                loginStatus: null,
+            }));
         } else {
-            throw new Error(data.data || "预约提交失败");
+            throw new Error(data.message || "获取账号列表失败");
         }
-    } catch (error) {
-        ElMessage.error(error.message || "预约提交失败");
+    } catch (error: any) {
+        console.error("获取账号列表失败", error);
+        ElMessage.error(error.message || "获取账号列表失败");
     }
 };
 
-const getSelectedAccount = (username) => {
-    return (
-        accounts.value.find((account) => account.Username === username) || {}
-    );
-};
-
-const togglePassword = () => {
-    showPassword.value = !showPassword.value;
-};
-
-const togglePartnerPassword = () => {
-    showPartnerPassword.value = !showPartnerPassword.value;
-};
-
-const getLoginButtonText = (status) => {
-    switch (status) {
-        case "success":
-            return "登录成功";
-        case "error":
-            return "登录失败";
-        default:
-            return "测试登录";
+// 获取任务列表
+const fetchTasks = async () => {
+    loading.value = true;
+    try {
+        const username = getUsername();
+        if (!username) {
+            ElMessage.error("请先登录");
+            return;
+        }
+        const data = await get("/task/list", { user: username });
+        if (data.message === "success") {
+            tasks.value = data.data || [];
+        } else {
+            throw new Error(data.message || "获取任务列表失败");
+        }
+    } catch (error: any) {
+        console.error("获取任务列表失败", error);
+        ElMessage.error(error.message || "获取任务列表失败");
+    } finally {
+        loading.value = false;
     }
 };
 
-const getLoginButtonType = (status) => {
-    switch (status) {
-        case "success":
-            return "success";
-        case "error":
-            return "danger";
-        default:
-            return "primary";
-    }
-};
-
-const getLoginButtonIcon = (status) => {
-    switch (status) {
-        case "success":
-            return SuccessFilled;
-        case "error":
-            return CircleClose;
-        default:
-            return Select;
-    }
-};
-
-const testLogin = async (username, isPartner = false) => {
-    const account = getSelectedAccount(username);
+// 测试登录
+const testLogin = async (isPartner: boolean) => {
+    const account = isPartner ? selectedPartner.value : selectedAccount.value;
     if (!account) return;
 
     try {
@@ -543,23 +586,17 @@ const testLogin = async (username, isPartner = false) => {
         if (data.message === "success") {
             account.loginStatus = "success";
 
-            const reservationIndex = reservations.value.findIndex(
-                (r) => (isPartner ? r.partnerId : r.accountId) === username,
-            );
-
-            if (reservationIndex !== -1) {
-                if (isPartner) {
-                    reservations.value[reservationIndex].partnerInfo = {
-                        buddy_id: data.data.buddy_id,
-                        buddy_num: data.data.buddy_num,
-                    };
-                } else {
-                    reservations.value[reservationIndex].accountInfo = {
-                        username: data.data.username,
-                        password: data.data.password,
-                        phone: data.data.phone,
-                    };
-                }
+            if (isPartner) {
+                newReservation.value.partnerInfo = {
+                    buddy_id: data.data.buddy_id,
+                    buddy_num: data.data.buddy_num,
+                };
+            } else {
+                newReservation.value.accountInfo = {
+                    username: data.data.username,
+                    password: data.data.password,
+                    phone: data.data.phone,
+                };
             }
             ElMessage.success("登录测试成功");
         } else {
@@ -572,56 +609,161 @@ const testLogin = async (username, isPartner = false) => {
     }
 };
 
-const canSubmit = (index) => {
-    const reservation = reservations.value[index];
-    const account = getSelectedAccount(reservation.accountId);
-    const partner = getSelectedAccount(reservation.partnerId);
+// 创建预约
+const handleCreateReservation = async () => {
+    if (!reservationFormRef.value) return;
 
-    return (
-        account?.loginStatus === "success" &&
-        partner?.loginStatus === "success" &&
-        apiKey.value
-    );
+    await reservationFormRef.value.validate(async (valid: boolean) => {
+        if (!valid) return;
+
+        if (
+            !newReservation.value.accountInfo ||
+            !newReservation.value.partnerInfo
+        ) {
+            ElMessage.warning("请先完成账号登录测试");
+            return;
+        }
+
+        creating.value = true;
+        try {
+            const venue_site_id =
+                newReservation.value.venueId === 1 ? "143" : "23";
+            const currentUser = getUsername();
+            if (!currentUser) {
+                ElMessage.error("请先登录后再提交预约");
+                return;
+            }
+
+            const requestData = {
+                user: currentUser,
+                username: newReservation.value.accountInfo.username,
+                password: newReservation.value.accountInfo.password,
+                user_phone: newReservation.value.accountInfo.phone,
+                captcha_api: apiKey.value,
+                buddy_user_id: newReservation.value.partnerInfo.buddy_id,
+                buddy_num: newReservation.value.partnerInfo.buddy_num,
+                venue_site_id: venue_site_id,
+                reservation_date: newReservation.value.date,
+                reservation_time: newReservation.value.timeSlot,
+                site_name: newReservation.value.locationId,
+            };
+
+            const data = await post("/task/add", requestData);
+            if (data.message === "success") {
+                ElMessage.success("预约创建成功");
+                showCreateDialog.value = false;
+                resetForm();
+                fetchTasks();
+            } else {
+                throw new Error(data.data || "预约创建失败");
+            }
+        } catch (error: any) {
+            ElMessage.error(error.message || "预约创建失败");
+        } finally {
+            creating.value = false;
+        }
+    });
 };
 
-const getSubmitButtonTitle = (index) => {
-    const reservation = reservations.value[index];
-    const account = getSelectedAccount(reservation.accountId);
-    const partner = getSelectedAccount(reservation.partnerId);
-
-    if (account?.loginStatus !== "success") {
-        return "请确保预约账号登录测试成功";
-    }
-    if (partner?.loginStatus !== "success") {
-        return "请确保同伴账号登录测试成功";
-    }
-    if (!apiKey.value) {
-        return "请先在个人中心设置API KEY";
-    }
-    return "提交预约";
+// 查看详情
+const viewTaskDetail = (task: any) => {
+    currentTask.value = task;
+    showDetailDialog.value = true;
 };
 
-const showDevelopingMessage = () => {
-    ElMessage.info("正在开发中...");
+// 重置表单
+const resetForm = () => {
+    newReservation.value = {
+        accountId: "",
+        partnerId: "",
+        venueId: null,
+        locationId: "",
+        date: "",
+        timeSlot: "",
+        accountInfo: null,
+        partnerInfo: null,
+    };
+    availableLocations.value = [];
+
+    // 重置账号登录状态
+    accounts.value.forEach((acc) => {
+        acc.loginStatus = null;
+    });
 };
 
+// 获取登录按钮文本
+const getLoginButtonText = (status: string) => {
+    switch (status) {
+        case "success":
+            return "登录成功";
+        case "error":
+            return "登录失败";
+        default:
+            return "测试登录";
+    }
+};
+
+const getLoginButtonType = (status: string) => {
+    switch (status) {
+        case "success":
+            return "success";
+        case "error":
+            return "danger";
+        default:
+            return "primary";
+    }
+};
+
+const getLoginButtonIcon = (status: string) => {
+    switch (status) {
+        case "success":
+            return SuccessFilled;
+        case "error":
+            return CircleClose;
+        default:
+            return Select;
+    }
+};
+
+// 获取场馆名称
+const getVenueName = (venueId: string) => {
+    return venueId === "143" ? "体育馆" : "风雨操场";
+};
+
+// 获取状态类型
+const getStatusType = (isFinished: boolean) => {
+    return isFinished ? "success" : "warning";
+};
+
+// 格式化时间
+const formatTime = (time: string) => {
+    if (!time) return "";
+    return new Date(time).toLocaleString("zh-CN");
+};
+
+// 页面加载
 onMounted(() => {
     fetchAccounts();
+    fetchTasks();
+    initTimeSlots();
 });
 </script>
 
 <style scoped>
 .content {
-    padding: 24px;
-    background-color: var(--background);
+    padding: 20px;
+    background-color: #f5f7fa;
+    min-height: calc(100vh - 80px);
+}
+
+.main-card {
+    margin-bottom: 20px;
 }
 
 .card-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    flex-wrap: wrap;
-    gap: 16px;
 }
 
 .header-title {
@@ -634,55 +776,22 @@ onMounted(() => {
 
 .button-group {
     display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
+    gap: 10px;
 }
 
-.cards-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
-    gap: 20px;
-    margin-top: 20px;
-}
-
-.reservation-card {
-    background: var(--el-fill-color-light);
-}
-
-.account-info-group {
+.account-info-display {
     display: flex;
     gap: 8px;
     align-items: center;
     width: 100%;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
 }
 
-.venue-group,
-.datetime-group {
-    display: flex;
-    gap: 12px;
-    width: 100%;
+:deep(.el-table) {
+    font-size: 14px;
 }
 
-:deep(.el-form-item__label) {
-    font-weight: 500;
-    padding-right: 4px;
-}
-
-@media (max-width: 1200px) {
-    .cards-grid {
-        grid-template-columns: 1fr;
-    }
-}
-
-@media (max-width: 768px) {
-    .account-info-group {
-        flex-direction: column;
-        align-items: stretch;
-    }
-
-    .account-info-group > * {
-        width: 100% !important;
-    }
+:deep(.el-descriptions__label) {
+    font-weight: 600;
 }
 </style>

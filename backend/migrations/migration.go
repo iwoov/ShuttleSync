@@ -4,20 +4,11 @@ import (
 	"fmt"
 	"os"
 
+	"shuttlesync/models"
+
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
-
-// RefreshToken 定义 refresh token 的数据库模型（与 models/token.go 中的定义一致）
-type RefreshToken struct {
-	ID        uint   `gorm:"primaryKey"`
-	UserID    uint   `gorm:"not null;index"`
-	Username  string `gorm:"not null;index"`
-	Token     string `gorm:"not null;unique"`
-	ExpiresAt int64  `gorm:"not null"` // 使用 Unix 时间戳
-	CreatedAt int64  `gorm:"autoCreateTime;not null"`
-	IsRevoked bool   `gorm:"not null;default:false"`
-}
 
 // RunMigrations 执行数据库迁移
 func RunMigrations() {
@@ -38,8 +29,8 @@ func RunMigrations() {
 		fmt.Println("Database file exists, running migrations...")
 	}
 
-	// 自动迁移 RefreshToken 表
-	err = db.AutoMigrate(&RefreshToken{})
+	// 自动迁移 RefreshToken 表（复用 models 包中的定义，避免字段不一致）
+	err = db.AutoMigrate(&models.RefreshToken{})
 	if err != nil {
 		fmt.Println("Error migrating RefreshToken table:", err)
 	} else {

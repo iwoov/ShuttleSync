@@ -103,6 +103,8 @@ func router() {
 			bargain.GET("/list", getBargainTasksHandler)
 			// 捡漏任务-获取任务详情
 			bargain.GET("/:id", getBargainTaskDetailHandler)
+			// 捡漏任务-更新任务
+			bargain.PUT("/:id", updateBargainTaskHandler)
 			// 捡漏任务-取消任务
 			bargain.DELETE("/:id", cancelBargainTaskHandler)
 			// 捡漏任务-获取任务日志
