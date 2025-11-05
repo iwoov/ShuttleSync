@@ -202,40 +202,49 @@ func scanAndReserve(taskID string) error {
 	log.Printf("发现 %d 个可用场地 [TaskID: %s]", len(availableSlots), taskID)
 	logBargainScan(taskID, len(availableSlots), false, fmt.Sprintf("发现%d个可用场地", len(availableSlots)), "")
 
-	// 尝试为两个账号预约
-	successCount := 0
-	accounts := []UserInfoDb{account1, account2}
+	// 选择第一个可用场地
+	slot := availableSlots[0]
 
-	for i, account := range accounts {
-		if i >= len(availableSlots) {
-			break // 可用场地不足
-		}
+	// 获取账号2的BuddyNum和BuddyUserID
+	// 需要登录账号2来获取其BuddyNum
+	client2, buddyInfo, err := NewClient(account2.Username, account2.Password)
+	if err != nil {
+		logBargainScan(taskID, len(availableSlots), false, "账号2登录失败", err.Error())
+		log.Printf("账号2登录失败 [TaskID: %s]: %v", taskID, err)
+		return err
+	}
+	_ = client2 // 避免未使用变量警告
 
-		slot := availableSlots[i]
-
-		// 执行预约
-		success, err := executeReservation(account, user.CaptchaAPI, task, slot)
-		if success {
-			successCount++
-			log.Printf("账号%d预约成功 [TaskID: %s, 场地: %s, 时间: %s]",
-				i+1, taskID, slot.SiteName, slot.TimeSlot)
-		} else {
-			log.Printf("账号%d预约失败 [TaskID: %s]: %v", i+1, taskID, err)
-		}
+	if buddyInfo == nil || buddyInfo.BuddyNum == "" {
+		errMsg := "无法获取账号2的同伴码"
+		logBargainScan(taskID, len(availableSlots), false, errMsg, "")
+		log.Printf("%s [TaskID: %s]", errMsg, taskID)
+		return fmt.Errorf(errMsg)
 	}
 
-	// 如果有预约成功，更新任务状态
-	if successCount > 0 {
+	log.Printf("获取同伴信息成功 [TaskID: %s, BuddyUserID: %d, BuddyNum: %s]",
+		taskID, buddyInfo.UserId, buddyInfo.BuddyNum)
+
+	// 使用账号1作为主预约账号，账号2提供同伴信息
+	// 两个账号一起预约同一个场地
+	success, err := executeReservation(account1, account2, buddyInfo, user.CaptchaAPI, task, slot)
+	if success {
+		// 预约成功，更新任务状态
 		db.Model(&task).Updates(map[string]interface{}{
-			"success_count": task.SuccessCount + successCount,
+			"success_count": task.SuccessCount + 1,
 			"status":        "completed",
 		})
 		logBargainScan(taskID, len(availableSlots), true,
-			fmt.Sprintf("成功预约%d个场地", successCount), "")
+			fmt.Sprintf("预约成功 [场地: %s, 时间: %s]", slot.SiteName, slot.TimeSlot), "")
 
 		// 停止定时任务
 		stopBargainScheduler(taskID)
-		log.Printf("捡漏任务完成 [TaskID: %s, 成功: %d]", taskID, successCount)
+		log.Printf("捡漏任务完成 [TaskID: %s, 场地: %s, 时间: %s]",
+			taskID, slot.SiteName, slot.TimeSlot)
+	} else {
+		logBargainScan(taskID, len(availableSlots), false,
+			fmt.Sprintf("预约失败: %v", err), "")
+		log.Printf("预约失败 [TaskID: %s]: %v", taskID, err)
 	}
 
 	return nil
@@ -299,16 +308,20 @@ func findAvailableSlots(venueInfo *fastjson.Value, siteName, reservationTime str
 }
 
 // executeReservation 执行预约
-func executeReservation(account UserInfoDb, captchaAPI string, task BargainTaskDb, slot VenueSlot) (bool, error) {
+// account1: 主预约账号
+// account2: 同伴账号
+// buddyInfo: 账号2的同伴信息（包含BuddyNum和UserId）
+func executeReservation(account1 UserInfoDb, account2 UserInfoDb, buddyInfo *UserInfo, captchaAPI string, task BargainTaskDb, slot VenueSlot) (bool, error) {
 	// 创建临时TaskInfo用于复用现有预约逻辑
+	// 账号1作为主预约账号，账号2提供同伴码
 	taskInfo := TaskInfoDb{
 		User:            task.User,
-		Username:        account.Username,
-		Password:        account.Password,
-		UserPhone:       account.Phone,
+		Username:        account1.Username,  // 主预约账号
+		Password:        account1.Password,
+		UserPhone:       account1.Phone,
 		CaptchaAPI:      captchaAPI,
-		BuddyUserID:     "", // 捡漏模式不使用同伴
-		BuddyNum:        "",
+		BuddyUserID:     fmt.Sprintf("%d", buddyInfo.UserId), // 账号2的UserID
+		BuddyNum:        buddyInfo.BuddyNum,                  // 账号2的BuddyNum
 		VenueSiteID:     task.VenueSiteID,
 		ReservationDate: task.ReservationDate,
 		ReservationTime: slot.TimeSlot,
@@ -319,6 +332,9 @@ func executeReservation(account UserInfoDb, captchaAPI string, task BargainTaskD
 		SiteId:          slot.SiteID,
 		TimeId:          slot.TimeID,
 	}
+
+	log.Printf("开始预约 [主账号: %s, 同伴: %s, 场地: %s, 时间: %s]",
+		account1.Username, account2.Username, slot.SiteName, slot.TimeSlot)
 
 	// 使用现有的预约逻辑
 	if err := tyysReserveTask(taskInfo, true); err != nil {
