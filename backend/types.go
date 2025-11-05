@@ -111,3 +111,45 @@ type TyysAccount struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
 }
+
+// BargainTaskDb 捡漏任务数据库模型
+type BargainTaskDb struct {
+	ID              uint      `gorm:"primaryKey" json:"id"`
+	User            string    `gorm:"not null" json:"user"`                    // 任务所属用户
+	TaskID          string    `gorm:"not null;unique" json:"task_id"`          // 任务唯一标识
+	AccountID1      uint      `gorm:"not null" json:"account_id_1"`            // 第一个预约账号ID
+	AccountID2      uint      `gorm:"not null" json:"account_id_2"`            // 第二个预约账号ID
+	VenueSiteID     string    `gorm:"not null" json:"venue_site_id"`           // 场馆ID
+	ReservationDate string    `gorm:"not null" json:"reservation_date"`        // 预约日期 YYYY-MM-DD
+	SiteName        string    `json:"site_name"`                               // 场地号（可选，为空则任意场地）
+	ReservationTime string    `json:"reservation_time"`                        // 时间段（可选，为空则任意时间）
+	ScanInterval    int       `gorm:"not null" json:"scan_interval"`           // 扫描间隔（分钟）
+	Status          string    `gorm:"not null;default:'active'" json:"status"` // 任务状态: active, paused, completed, cancelled
+	SuccessCount    int       `gorm:"default:0" json:"success_count"`          // 成功预约次数
+	ScanCount       int       `gorm:"default:0" json:"scan_count"`             // 扫描次数
+	LastScanTime    time.Time `json:"last_scan_time"`                          // 最后扫描时间
+	CreatedAt       time.Time `gorm:"autoCreateTime;not null" json:"created_at"`
+	UpdatedAt       time.Time `gorm:"autoUpdateTime" json:"updated_at"`
+}
+
+// BargainLogDb 捡漏扫描日志
+type BargainLogDb struct {
+	ID            uint      `gorm:"primaryKey" json:"id"`
+	TaskID        string    `gorm:"not null;index" json:"task_id"`       // 关联任务ID
+	ScanTime      time.Time `gorm:"autoCreateTime;not null" json:"scan_time"` // 扫描时间
+	AvailableSlots int      `gorm:"default:0" json:"available_slots"`    // 发现的可用场地数
+	Success       bool      `gorm:"default:false" json:"success"`        // 是否成功预约
+	Message       string    `gorm:"type:text" json:"message"`            // 日志消息
+	Details       string    `gorm:"type:text" json:"details"`            // 详细信息（JSON格式）
+}
+
+// BargainTaskRequest 创建捡漏任务请求
+type BargainTaskRequest struct {
+	AccountID1      uint   `json:"account_id_1" binding:"required"`      // 第一个账号ID
+	AccountID2      uint   `json:"account_id_2" binding:"required"`      // 第二个账号ID
+	VenueSiteID     string `json:"venue_site_id" binding:"required"`     // 场馆ID
+	ReservationDate string `json:"reservation_date" binding:"required"`  // 预约日期
+	SiteName        string `json:"site_name"`                            // 场地号（可选）
+	ReservationTime string `json:"reservation_time"`                     // 时间段（可选）
+	ScanInterval    int    `json:"scan_interval" binding:"required,min=1,max=60"` // 扫描间隔（1-60分钟）
+}

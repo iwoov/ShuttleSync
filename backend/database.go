@@ -26,13 +26,13 @@ func InitDb() {
 	if !dbExists {
 		fmt.Println("Database file not found, creating database...")
 		// 数据库文件不存在时，创建表
-		db.AutoMigrate(&TaskInfoDb{}, &UserInfoDb{}, &UserDb{})
+		db.AutoMigrate(&TaskInfoDb{}, &UserInfoDb{}, &UserDb{}, &BargainTaskDb{}, &BargainLogDb{})
 		fmt.Println("Tables created successfully")
 	} else {
 		fmt.Println("Database file exists, checking tables...")
 
 		// 数据库文件存在，检查并创建表
-		err := db.AutoMigrate(&TaskInfoDb{}, &UserInfoDb{})
+		err := db.AutoMigrate(&TaskInfoDb{}, &UserInfoDb{}, &BargainTaskDb{}, &BargainLogDb{})
 		if err != nil {
 			fmt.Println("Error during table check:", err)
 		} else {

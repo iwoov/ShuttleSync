@@ -93,6 +93,24 @@ func router() {
 			tyys.GET("/qr_code", getReservationCode)
 		}
 
+		// ========== 捡漏模式路由组（需要鉴权） ==========
+		bargain := api.Group("/bargain")
+		bargain.Use(auth.AuthMiddleware())
+		{
+			// 捡漏任务-创建任务
+			bargain.POST("/create", createBargainTaskHandler)
+			// 捡漏任务-获取用户任务列表
+			bargain.GET("/list", getBargainTasksHandler)
+			// 捡漏任务-获取任务详情
+			bargain.GET("/:id", getBargainTaskDetailHandler)
+			// 捡漏任务-取消任务
+			bargain.DELETE("/:id", cancelBargainTaskHandler)
+			// 捡漏任务-获取任务日志
+			bargain.GET("/:id/logs", getBargainLogsHandler)
+			// 捡漏任务-获取所有任务（需要管理员权限）
+			bargain.GET("/all", auth.AdminMiddleware(), getAllBargainTasksHandler)
+		}
+
 	}
 
 	// Serve embedded frontend (built assets copied to backend/web)
