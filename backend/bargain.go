@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"math/rand"
 	"sync"
 	"time"
 
@@ -202,8 +203,12 @@ func scanAndReserve(taskID string) error {
 	log.Printf("发现 %d 个可用场地 [TaskID: %s]", len(availableSlots), taskID)
 	logBargainScan(taskID, len(availableSlots), false, fmt.Sprintf("发现%d个可用场地", len(availableSlots)), "")
 
-	// 选择第一个可用场地
-	slot := availableSlots[0]
+	// 随机选择一个可用场地
+	// 使用时间戳作为随机种子，确保每次扫描都有不同的随机结果
+	randomIndex := rand.Intn(len(availableSlots))
+	slot := availableSlots[randomIndex]
+	log.Printf("随机选择场地 [索引: %d/%d, 场地: %s, 时间: %s]",
+		randomIndex+1, len(availableSlots), slot.SiteName, slot.TimeSlot)
 
 	// 获取账号2的BuddyNum和BuddyUserID
 	// 需要登录账号2来获取其BuddyNum

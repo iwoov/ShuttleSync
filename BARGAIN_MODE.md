@@ -279,7 +279,7 @@ Authorization: Bearer <access_token>
 for each space in venue_info {
     // 如果指定了场地名称，只匹配该场地
     if siteName != "" && space.name != siteName {
-        continue
+        continue  // 未指定时，不过滤，返回所有场地
     }
 
     // 遍历时间段
@@ -288,7 +288,7 @@ for each space in venue_info {
         if time.status == 1 {
             // 如果指定了时间，只匹配该时间
             if reservationTime != "" && time.beginTime != reservationTime {
-                continue
+                continue  // 未指定时，不过滤，返回所有时间
             }
 
             // 添加到可用列表
@@ -296,7 +296,17 @@ for each space in venue_info {
         }
     }
 }
+
+// 从可用列表中随机选择一个
+randomIndex = rand.Intn(len(availableSlots))
+selectedSlot = availableSlots[randomIndex]
 ```
+
+**场地选择策略：**
+- 如果**指定**了场地号和时间：只匹配完全符合的场地
+- 如果**未指定**场地号：返回所有可用场地
+- 如果**未指定**时间：返回所有可用时间段
+- 发现多个可用场地时：**随机选择一个**进行预约
 
 ## 可复用的现有接口
 
@@ -371,8 +381,9 @@ for each space in venue_info {
 用户可以：
 1. 配置两个预约账号
 2. 创建捡漏任务，不指定site_name和reservation_time
-3. 系统发现任何可用场地就立即用两个账号预约
-4. 提高预约成功率
+3. 系统扫描发现多个可用场地时，会随机选择一个
+4. 随机选择可以避免多个捡漏任务竞争同一个场地
+5. 提高预约成功率
 ```
 
 ## 技术实现细节
@@ -395,13 +406,24 @@ c.AddFunc(cronSpec, scanFunction)
 c.Start()
 ```
 
-### 3. 错误处理
+### 3. 随机选择策略
+```go
+// 当发现多个可用场地时，随机选择一个
+randomIndex := rand.Intn(len(availableSlots))
+slot := availableSlots[randomIndex]
+```
+**优势：**
+- 避免所有捡漏任务都抢同一个场地
+- 分散预约压力，提高整体成功率
+- 对于不指定场地/时间的用户更加灵活
+
+### 4. 错误处理
 - 登录失败：记录日志，等待下次扫描
 - 网络错误：记录日志，等待下次扫描
-- 预约失败：记录日志，继续尝试第二个账号
+- 预约失败：记录日志，等待下次扫描
 - 任务不存在：停止调度器
 
-### 4. 资源管理
+### 5. 资源管理
 - 每个任务有独立的 cron 实例
 - 任务取消/完成时自动释放资源
 - 限制日志最多返回100条
