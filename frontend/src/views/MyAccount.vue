@@ -1,126 +1,128 @@
 <template>
     <Layout>
         <el-main class="content">
-                <!-- 账户信息卡片 -->
-                <el-card shadow="hover" class="info-card">
-                    <template #header>
-                        <div class="card-header">
-                            <div class="header-title">
-                                <el-icon><User /></el-icon>
-                                <span>我的账户</span>
-                            </div>
+            <!-- 账户信息卡片 -->
+            <el-card shadow="hover" class="info-card">
+                <template #header>
+                    <div class="card-header">
+                        <div class="header-title">
+                            <el-icon><Setting /></el-icon>
+                            <span>账户设置</span>
                         </div>
-                    </template>
-
-                    <div class="account-info-row">
-                        <el-tag type="primary" size="large" effect="plain">
-                            <el-icon><User /></el-icon>
-                            <span style="margin-left: 8px">用户名: {{ username }}</span>
-                        </el-tag>
                     </div>
-                </el-card>
+                </template>
 
-                <!-- 修改密码卡片 -->
-                <el-card shadow="hover" class="password-card">
-                    <template #header>
-                        <div class="card-header">
-                            <div class="header-title">
-                                <el-icon><Key /></el-icon>
-                                <span>修改密码</span>
-                            </div>
+                <div class="account-info-row">
+                    <el-tag type="primary" size="large" effect="plain">
+                        <el-icon><User /></el-icon>
+                        <span style="margin-left: 8px"
+                            >用户名: {{ username }}</span
+                        >
+                    </el-tag>
+                </div>
+            </el-card>
+
+            <!-- 修改密码卡片 -->
+            <el-card shadow="hover" class="password-card">
+                <template #header>
+                    <div class="card-header">
+                        <div class="header-title">
+                            <el-icon><Key /></el-icon>
+                            <span>修改密码</span>
                         </div>
-                    </template>
+                    </div>
+                </template>
 
-                    <el-form
-                        ref="passwordFormRef"
-                        :model="passwordForm"
-                        :rules="passwordRules"
-                        label-width="100px"
-                    >
-                        <el-form-item label="当前密码" prop="oldPassword">
-                            <el-input
-                                v-model="passwordForm.oldPassword"
-                                type="password"
-                                placeholder="请输入当前密码"
-                                show-password
-                                style="max-width: 400px"
-                            />
-                        </el-form-item>
-
-                        <el-form-item label="新密码" prop="newPassword">
-                            <el-input
-                                v-model="passwordForm.newPassword"
-                                type="password"
-                                placeholder="请输入新密码"
-                                show-password
-                                style="max-width: 400px"
-                            />
-                        </el-form-item>
-
-                        <el-form-item label="确认新密码" prop="confirmPassword">
-                            <el-input
-                                v-model="passwordForm.confirmPassword"
-                                type="password"
-                                placeholder="请再次输入新密码"
-                                show-password
-                                style="max-width: 400px"
-                            />
-                        </el-form-item>
-
-                        <el-form-item>
-                            <el-button
-                                type="primary"
-                                :icon="Check"
-                                @click="handlePasswordChange"
-                            >
-                                修改密码
-                            </el-button>
-                        </el-form-item>
-                    </el-form>
-                </el-card>
-
-                <!-- API KEY 卡片 -->
-                <el-card shadow="hover" class="api-card">
-                    <template #header>
-                        <div class="card-header">
-                            <div class="header-title">
-                                <el-icon><Key /></el-icon>
-                                <span>API KEY</span>
-                            </div>
-                        </div>
-                    </template>
-
-                    <div class="api-key-group">
+                <el-form
+                    ref="passwordFormRef"
+                    :model="passwordForm"
+                    :rules="passwordRules"
+                    label-width="100px"
+                >
+                    <el-form-item label="当前密码" prop="oldPassword">
                         <el-input
-                            v-model="apiKey"
-                            :readonly="!isEditingApiKey"
-                            placeholder="请输入 API Key"
-                            style="max-width: 600px"
+                            v-model="passwordForm.oldPassword"
+                            type="password"
+                            placeholder="请输入当前密码"
+                            show-password
+                            style="max-width: 400px"
                         />
-                        <el-button
-                            :type="isEditingApiKey ? 'success' : 'primary'"
-                            :icon="isEditingApiKey ? Check : Edit"
-                            @click="toggleApiKeyEdit"
-                        >
-                            {{ isEditingApiKey ? "保存" : "修改" }}
-                        </el-button>
-                    </div>
-                </el-card>
+                    </el-form-item>
 
-                <!-- 退出登录（页面底部） -->
-                <el-card shadow="hover" class="logout-card">
-                    <div class="logout-row">
+                    <el-form-item label="新密码" prop="newPassword">
+                        <el-input
+                            v-model="passwordForm.newPassword"
+                            type="password"
+                            placeholder="请输入新密码"
+                            show-password
+                            style="max-width: 400px"
+                        />
+                    </el-form-item>
+
+                    <el-form-item label="确认新密码" prop="confirmPassword">
+                        <el-input
+                            v-model="passwordForm.confirmPassword"
+                            type="password"
+                            placeholder="请再次输入新密码"
+                            show-password
+                            style="max-width: 400px"
+                        />
+                    </el-form-item>
+
+                    <el-form-item>
                         <el-button
-                            type="danger"
-                            :icon="SwitchButton"
-                            @click="handleLogout"
-                            size="large"
-                            style="width: 100%"
+                            type="primary"
+                            :icon="Check"
+                            @click="handlePasswordChange"
                         >
-                            退出登录
+                            修改密码
                         </el-button>
+                    </el-form-item>
+                </el-form>
+            </el-card>
+
+            <!-- API KEY 卡片 -->
+            <el-card shadow="hover" class="api-card">
+                <template #header>
+                    <div class="card-header">
+                        <div class="header-title">
+                            <el-icon><Key /></el-icon>
+                            <span>API KEY</span>
+                        </div>
                     </div>
-                </el-card>
+                </template>
+
+                <div class="api-key-group">
+                    <el-input
+                        v-model="apiKey"
+                        :readonly="!isEditingApiKey"
+                        placeholder="请输入 API Key"
+                        style="max-width: 600px"
+                    />
+                    <el-button
+                        :type="isEditingApiKey ? 'success' : 'primary'"
+                        :icon="isEditingApiKey ? Check : Edit"
+                        @click="toggleApiKeyEdit"
+                    >
+                        {{ isEditingApiKey ? "保存" : "修改" }}
+                    </el-button>
+                </div>
+            </el-card>
+
+            <!-- 退出登录（页面底部） -->
+            <el-card shadow="hover" class="logout-card">
+                <div class="logout-row">
+                    <el-button
+                        type="danger"
+                        :icon="SwitchButton"
+                        @click="handleLogout"
+                        size="large"
+                        style="width: 100%"
+                    >
+                        退出登录
+                    </el-button>
+                </div>
+            </el-card>
         </el-main>
     </Layout>
 </template>
@@ -129,7 +131,14 @@
 import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
-import { User, Key, SwitchButton, Check, Edit } from "@element-plus/icons-vue";
+import {
+    User,
+    Key,
+    SwitchButton,
+    Check,
+    Edit,
+    Setting,
+} from "@element-plus/icons-vue";
 import Layout from "@/components/Layout.vue";
 import { patch, logout } from "@/utils/api";
 import {

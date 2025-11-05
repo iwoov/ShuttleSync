@@ -34,7 +34,7 @@
             </el-menu-item>
 
             <el-menu-item index="/user-management" v-if="isAdmin">
-                <el-icon><UserFilled /></el-icon>
+                <el-icon><User /></el-icon>
                 <span>用户管理</span>
             </el-menu-item>
 
@@ -44,8 +44,8 @@
             </el-menu-item>
 
             <el-menu-item index="/my-account">
-                <el-icon><User /></el-icon>
-                <span>我的账户</span>
+                <el-icon><Setting /></el-icon>
+                <span>账户设置</span>
             </el-menu-item>
         </el-menu>
 
@@ -69,12 +69,12 @@ import { ElMessageBox, ElMessage } from "element-plus";
 import {
     Calendar,
     OfficeBuilding,
-    UserFilled,
     User,
     SwitchButton,
     Tickets,
     Search,
     Postcard,
+    Setting,
 } from "@element-plus/icons-vue";
 import { logout } from "@/utils/api";
 import { isAdmin as checkIsAdmin } from "@/utils/auth";
