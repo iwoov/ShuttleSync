@@ -7,6 +7,7 @@ import { ElMessage } from "element-plus";
 import Login from "@/views/Login.vue";
 import MyReservation from "@/views/MyReservation.vue";
 import VenueReservation from "@/views/VenueReservation.vue";
+import BargainMode from "@/views/BargainMode.vue";
 import UserManagement from "@/views/UserManagement.vue";
 import MyAccount from "@/views/MyAccount.vue";
 import AllReservations from "@/views/AllReservations.vue";
@@ -32,6 +33,12 @@ const routes: RouteRecordRaw[] = [
     path: "/venue-reservation",
     name: "VenueReservation",
     component: VenueReservation,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: "/bargain-mode",
+    name: "BargainMode",
+    component: BargainMode,
     meta: { requiresAuth: true },
   },
   {

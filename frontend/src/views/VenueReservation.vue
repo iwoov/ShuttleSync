@@ -26,7 +26,7 @@
                                 <el-button
                                     type="info"
                                     :icon="Search"
-                                    @click="showDevelopingMessage"
+                                    @click="router.push('/bargain-mode')"
                                 >
                                     捡漏模式
                                 </el-button>
@@ -318,6 +318,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
+import { useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
 import {
     OfficeBuilding,
@@ -334,6 +335,7 @@ import Sidebar from "@/components/Sidebar.vue";
 import { get, post } from "@/utils/api";
 import { getUsername, getCaptchaApi } from "@/utils/auth";
 
+const router = useRouter();
 const accounts = ref([]);
 const partners = ref([]);
 const venues = ref([

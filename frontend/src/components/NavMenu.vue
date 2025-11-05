@@ -23,6 +23,11 @@
         <span>场馆预约</span>
       </el-menu-item>
 
+      <el-menu-item index="/bargain-mode">
+        <el-icon><Search /></el-icon>
+        <span>捡漏模式</span>
+      </el-menu-item>
+
       <el-menu-item index="/user-management" v-if="isAdmin">
         <el-icon><UserFilled /></el-icon>
         <span>用户管理</span>
@@ -56,7 +61,7 @@
 import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessageBox, ElMessage } from 'element-plus'
-import { Calendar, OfficeBuilding, UserFilled, User, SwitchButton, Tickets } from '@element-plus/icons-vue'
+import { Calendar, OfficeBuilding, UserFilled, User, SwitchButton, Tickets, Search } from '@element-plus/icons-vue'
 import { logout } from '@/utils/api'
 import { isAdmin as checkIsAdmin } from '@/utils/auth'
 

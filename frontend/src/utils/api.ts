@@ -261,3 +261,55 @@ export async function register(username: string, password: string) {
   });
   return await response.json();
 }
+
+// ==================== 捡漏模式相关接口 ====================
+
+/**
+ * 创建捡漏任务
+ */
+export async function createBargainTask(data: {
+  account_id_1: number;
+  account_id_2: number;
+  venue_site_id: string;
+  reservation_date: string;
+  site_name?: string;
+  reservation_time?: string;
+  scan_interval: number;
+}) {
+  return post("/bargain/create", data);
+}
+
+/**
+ * 获取捡漏任务列表
+ */
+export async function getBargainTasks() {
+  return get("/bargain/list");
+}
+
+/**
+ * 获取捡漏任务详情
+ */
+export async function getBargainTaskDetail(taskId: string) {
+  return get(`/bargain/${taskId}`);
+}
+
+/**
+ * 取消捡漏任务
+ */
+export async function cancelBargainTask(taskId: string) {
+  return del(`/bargain/${taskId}`);
+}
+
+/**
+ * 获取捡漏任务日志
+ */
+export async function getBargainTaskLogs(taskId: string) {
+  return get(`/bargain/${taskId}/logs`);
+}
+
+/**
+ * 获取所有捡漏任务（管理员）
+ */
+export async function getAllBargainTasks() {
+  return get("/bargain/all");
+}
