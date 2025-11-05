@@ -62,6 +62,12 @@
             </template>
           </el-table-column>
 
+          <el-table-column label="截止时间" width="160">
+            <template #default="{ row }">
+              {{ row.deadline ? formatTime(row.deadline) : '无' }}
+            </template>
+          </el-table-column>
+
           <el-table-column prop="created_at" label="创建时间" width="160">
             <template #default="{ row }">
               {{ formatTime(row.created_at) }}
@@ -182,6 +188,20 @@
             />
             <el-text type="info" size="small">1-60分钟，建议5-10分钟</el-text>
           </el-form-item>
+
+          <el-form-item label="预约截止时间">
+            <el-date-picker
+              v-model="newTask.deadline"
+              type="datetime"
+              placeholder="可选，超过此时间未预约到则失败"
+              format="YYYY-MM-DD HH:mm:ss"
+              value-format="YYYY-MM-DD HH:mm:ss"
+              :disabledDate="disabledDeadlineDate"
+              :disabledHours="disabledDeadlineHours"
+              style="width: 100%"
+            />
+            <el-text type="info" size="small">留空则在预约日期结束前一直尝试</el-text>
+          </el-form-item>
         </el-form>
 
         <template #footer>
@@ -232,8 +252,14 @@
           <el-descriptions-item label="最后扫描">
             {{ currentTask.last_scan_time ? formatTime(currentTask.last_scan_time) : '未扫描' }}
           </el-descriptions-item>
+          <el-descriptions-item label="截止时间">
+            {{ currentTask.deadline ? formatTime(currentTask.deadline) : '无' }}
+          </el-descriptions-item>
           <el-descriptions-item label="创建时间">
             {{ formatTime(currentTask.created_at) }}
+          </el-descriptions-item>
+          <el-descriptions-item v-if="currentTask.status === 'failed'" label="失败原因" :span="2">
+            <el-text type="danger">{{ currentTask.failure_reason }}</el-text>
           </el-descriptions-item>
         </el-descriptions>
 
@@ -312,6 +338,7 @@ const newTask = ref({
   site_name: '',
   reservation_time: '',
   scan_interval: 10,
+  deadline: '', // 预约截止时间
 });
 
 // 表单验证规则
@@ -339,6 +366,43 @@ const filterSecondAccount = () => {
 // 禁用过去的日期
 const disabledDate = (time: Date) => {
   return time.getTime() < Date.now() - 8.64e7; // 禁用今天之前的日期
+};
+
+// 截止时间日期限制：不能早于当前时间，不能晚于预约日期
+const disabledDeadlineDate = (time: Date) => {
+  const now = Date.now();
+  // 不能早于今天
+  if (time.getTime() < now - 8.64e7) {
+    return true;
+  }
+  // 如果已选择预约日期，不能晚于预约日期
+  if (newTask.value.reservation_date) {
+    const reservationDate = new Date(newTask.value.reservation_date);
+    // 截止时间不能晚于预约日期当天
+    if (time.getTime() > reservationDate.getTime() + 8.64e7 - 1) {
+      return true;
+    }
+  }
+  return false;
+};
+
+// 截止时间小时限制：如果是今天，不能早于当前小时
+const disabledDeadlineHours = () => {
+  const hours: number[] = [];
+  const now = new Date();
+  const currentHour = now.getHours();
+
+  // 如果没选截止日期，不限制
+  if (!newTask.value.deadline) return hours;
+
+  const deadlineDate = new Date(newTask.value.deadline);
+  // 如果是今天，禁用已过去的小时
+  if (deadlineDate.toDateString() === now.toDateString()) {
+    for (let i = 0; i < currentHour; i++) {
+      hours.push(i);
+    }
+  }
+  return hours;
 };
 
 // 获取账号列表
@@ -393,6 +457,9 @@ const handleCreateTask = async () => {
       }
       if (newTask.value.reservation_time) {
         data.reservation_time = newTask.value.reservation_time;
+      }
+      if (newTask.value.deadline) {
+        data.deadline = newTask.value.deadline;
       }
 
       const res = await createBargainTask(data);
@@ -473,6 +540,7 @@ const resetForm = () => {
     site_name: '',
     reservation_time: '',
     scan_interval: 10,
+    deadline: '',
   };
 };
 
@@ -488,6 +556,7 @@ const getStatusType = (status: string) => {
     active: 'success',
     completed: 'info',
     cancelled: 'warning',
+    failed: 'danger',
     paused: 'info',
   };
   return map[status] || 'info';
@@ -499,6 +568,7 @@ const getStatusText = (status: string) => {
     active: '运行中',
     completed: '已完成',
     cancelled: '已取消',
+    failed: '已失败',
     paused: '已暂停',
   };
   return map[status] || status;

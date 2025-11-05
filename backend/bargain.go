@@ -45,6 +45,24 @@ func createBargainTask(req BargainTaskRequest, username string) (*BargainTaskDb,
 		return nil, fmt.Errorf("预约日期必须在当前日期之后")
 	}
 
+	// 解析截止时间（可选）
+	var deadline time.Time
+	if req.Deadline != "" {
+		deadline, err = time.Parse("2006-01-02 15:04:05", req.Deadline)
+		if err != nil {
+			return nil, fmt.Errorf("截止时间格式错误，应为 YYYY-MM-DD HH:mm:ss")
+		}
+		// 验证截止时间必须在当前时间之后
+		if deadline.Before(time.Now()) {
+			return nil, fmt.Errorf("截止时间必须在当前时间之后")
+		}
+		// 验证截止时间不能晚于预约日期的23:59:59
+		maxDeadline := reservationDate.Add(24*time.Hour - time.Second)
+		if deadline.After(maxDeadline) {
+			return nil, fmt.Errorf("截止时间不能晚于预约日期当天")
+		}
+	}
+
 	// 创建任务
 	taskID := uuid.New().String()
 	task := &BargainTaskDb{
@@ -57,6 +75,7 @@ func createBargainTask(req BargainTaskRequest, username string) (*BargainTaskDb,
 		SiteName:        req.SiteName,
 		ReservationTime: req.ReservationTime,
 		ScanInterval:    req.ScanInterval,
+		Deadline:        deadline,
 		Status:          "active",
 		SuccessCount:    0,
 		ScanCount:       0,
@@ -149,6 +168,40 @@ func scanAndReserve(taskID string) error {
 	if task.Status != "active" {
 		stopBargainScheduler(taskID)
 		return fmt.Errorf("任务已停止或完成")
+	}
+
+	// 检查是否超过截止时间
+	currentTime := time.Now()
+	if !task.Deadline.IsZero() && currentTime.After(task.Deadline) {
+		// 超过用户设置的截止时间
+		failureReason := fmt.Sprintf("超过截止时间 %s，未能预约到场地", task.Deadline.Format("2006-01-02 15:04:05"))
+		db.Model(&task).Updates(map[string]interface{}{
+			"status":         "failed",
+			"failure_reason": failureReason,
+		})
+		logBargainScan(taskID, 0, false, "任务失败", failureReason)
+		stopBargainScheduler(taskID)
+		log.Printf("捡漏任务失败 [TaskID: %s]: %s", taskID, failureReason)
+		return fmt.Errorf(failureReason)
+	}
+
+	// 检查是否超过预约日期
+	reservationDate, err := time.Parse("2006-01-02", task.ReservationDate)
+	if err == nil {
+		// 预约日期的结束时间是当天23:59:59
+		reservationEndTime := reservationDate.Add(24*time.Hour - time.Second)
+		if currentTime.After(reservationEndTime) {
+			// 已经超过预约日期
+			failureReason := fmt.Sprintf("已超过预约日期 %s，预约窗口已关闭", task.ReservationDate)
+			db.Model(&task).Updates(map[string]interface{}{
+				"status":         "failed",
+				"failure_reason": failureReason,
+			})
+			logBargainScan(taskID, 0, false, "任务失败", failureReason)
+			stopBargainScheduler(taskID)
+			log.Printf("捡漏任务失败 [TaskID: %s]: %s", taskID, failureReason)
+			return fmt.Errorf(failureReason)
+		}
 	}
 
 	// 更新扫描次数和时间

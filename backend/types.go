@@ -124,10 +124,12 @@ type BargainTaskDb struct {
 	SiteName        string    `json:"site_name"`                               // 场地号（可选，为空则任意场地）
 	ReservationTime string    `json:"reservation_time"`                        // 时间段（可选，为空则任意时间）
 	ScanInterval    int       `gorm:"not null" json:"scan_interval"`           // 扫描间隔（分钟）
-	Status          string    `gorm:"not null;default:'active'" json:"status"` // 任务状态: active, paused, completed, cancelled
+	Deadline        time.Time `json:"deadline"`                                // 预约截止时间（可选，超过此时间未预约到则失败）
+	Status          string    `gorm:"not null;default:'active'" json:"status"` // 任务状态: active, paused, completed, cancelled, failed
 	SuccessCount    int       `gorm:"default:0" json:"success_count"`          // 成功预约次数
 	ScanCount       int       `gorm:"default:0" json:"scan_count"`             // 扫描次数
 	LastScanTime    time.Time `json:"last_scan_time"`                          // 最后扫描时间
+	FailureReason   string    `json:"failure_reason"`                          // 失败原因
 	CreatedAt       time.Time `gorm:"autoCreateTime;not null" json:"created_at"`
 	UpdatedAt       time.Time `gorm:"autoUpdateTime" json:"updated_at"`
 }
@@ -152,4 +154,5 @@ type BargainTaskRequest struct {
 	SiteName        string `json:"site_name"`                            // 场地号（可选）
 	ReservationTime string `json:"reservation_time"`                     // 时间段（可选）
 	ScanInterval    int    `json:"scan_interval" binding:"required,min=1,max=60"` // 扫描间隔（1-60分钟）
+	Deadline        string `json:"deadline"`                             // 预约截止时间（可选，格式：YYYY-MM-DD HH:mm:ss）
 }

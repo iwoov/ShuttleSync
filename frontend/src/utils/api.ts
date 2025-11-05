@@ -275,6 +275,7 @@ export async function createBargainTask(data: {
   site_name?: string;
   reservation_time?: string;
   scan_interval: number;
+  deadline?: string; // 预约截止时间（可选，格式：YYYY-MM-DD HH:mm:ss）
 }) {
   return post("/bargain/create", data);
 }
