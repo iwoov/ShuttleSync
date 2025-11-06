@@ -141,6 +141,39 @@ func cancelBargainTaskHandler(c *gin.Context) {
 	})
 }
 
+// cancelBargainTaskByQueryHandler 通过 query 参数取消捡漏任务（兼容普通模式调用）
+// GET /api/bargain/cancel?task_id=xxx
+func cancelBargainTaskByQueryHandler(c *gin.Context) {
+	username, exists := c.Get("username")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"message": "未授权",
+		})
+		return
+	}
+
+	taskID := c.Query("task_id")
+	if taskID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": "任务ID不能为空",
+		})
+		return
+	}
+
+	if err := cancelBargainTask(taskID, username.(string)); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": "取消任务失败",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "success",
+		"data":    "捡漏任务已取消",
+	})
+}
+
 // getBargainLogsHandler 获取捡漏任务的扫描日志
 // GET /api/bargain/:id/logs
 func getBargainLogsHandler(c *gin.Context) {

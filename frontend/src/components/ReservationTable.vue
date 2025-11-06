@@ -39,6 +39,19 @@
             </el-table-column>
 
             <el-table-column
+                prop="mode"
+                label="预约模式"
+                width="120"
+                align="center"
+            >
+                <template #default="scope">
+                    <el-tag type="info" effect="plain" size="small">
+                        {{ scope.row.mode || "普通模式" }}
+                    </el-tag>
+                </template>
+            </el-table-column>
+
+            <el-table-column
                 prop="username"
                 label="预约账号"
                 width="120"
@@ -89,6 +102,8 @@
                 <template #default="scope">
                     <div
                         v-if="
+                            scope.row.TradeNo &&
+                            scope.row.TradeNo !== '' &&
                             scope.row.orderStatus === '预约成功' &&
                             scope.row.ReservationStatus
                         "
@@ -153,33 +168,17 @@
 
             <el-table-column
                 label="订单操作"
-                width="100"
+                width="120"
                 align="center"
                 fixed="right"
             >
                 <template #default="scope">
-                    <div
-                        v-if="
-                            scope.row.orderStatus === '预约成功' &&
-                            scope.row.ReservationStatus
-                        "
-                    >
-                        <div
-                            v-if="
-                                isReservationExpired(
-                                    scope.row.date,
-                                    scope.row.time,
-                                )
-                            "
-                        >
-                            <span>-</span>
-                        </div>
+                    <div v-if="shouldShowCancel(scope.row)">
                         <el-button
-                            v-else
                             type="danger"
                             size="small"
                             :icon="Delete"
-                            @click="handleCancel(scope.row.TaskID)"
+                            @click="handleCancel(scope.row)"
                         >
                             取消
                         </el-button>
@@ -247,6 +246,10 @@ const getStatusType = (status) => {
         等待中: "info",
         执行中: "warning",
         执行完成: "success",
+        进行中: "warning",
+        已完成: "success",
+        已取消: "info",
+        暂停中: "info",
         失败: "danger",
     };
     return statusMap[status] || "info";
@@ -256,18 +259,39 @@ const getOrderStatusType = (status) => {
     const statusMap = {
         预约成功: "success",
         预约失败: "danger",
+        预约等待: "warning",
         等待预约: "warning",
+        订单取消: "info",
         已取消: "info",
     };
     return statusMap[status] || "info";
 };
 
+const shouldShowCancel = (reservation) => {
+    if (!reservation) return false;
+    if (
+        reservation.orderStatus === "预约成功" &&
+        reservation.ReservationStatus
+    ) {
+        return !isReservationExpired(reservation.date, reservation.time);
+    }
+    return ["预约等待", "预约失败"].includes(reservation.orderStatus);
+};
+
 const fetchQRCode = async (reservation) => {
+    const username = reservation.loginUsername || reservation.username;
+    const password = reservation.loginPassword || reservation.password;
+    const orderId = reservation.OrderId || reservation.orderId;
+
+    if (!username || !password || !orderId) {
+        ElMessage.warning("缺少账号或订单信息，无法获取预约码");
+        return;
+    }
     try {
         const data = await get("/tyys/qr_code", {
-            username: reservation.username,
-            password: reservation.password,
-            order_id: reservation.OrderId,
+            username,
+            password,
+            order_id: orderId,
         });
 
         if (data.message === "success") {
@@ -282,8 +306,8 @@ const fetchQRCode = async (reservation) => {
     }
 };
 
-const handleCancel = (taskId) => {
-    emit("cancel", taskId);
+const handleCancel = (reservation) => {
+    emit("cancel", reservation);
 };
 </script>
 

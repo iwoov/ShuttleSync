@@ -114,24 +114,27 @@ type TyysAccount struct {
 
 // BargainTaskDb 捡漏任务数据库模型
 type BargainTaskDb struct {
-	ID              uint      `gorm:"primaryKey" json:"id"`
-	User            string    `gorm:"not null" json:"user"`                            // 任务所属用户
-	TaskID          string    `gorm:"not null;unique" json:"task_id"`                  // 任务唯一标识
-	AccountID1      uint      `gorm:"column:account_id1;not null" json:"account_id_1"` // 第一个预约账号ID
-	AccountID2      uint      `gorm:"column:account_id2;not null" json:"account_id_2"` // 第二个预约账号ID
-	VenueSiteID     string    `gorm:"not null" json:"venue_site_id"`                   // 场馆ID
-	ReservationDate string    `gorm:"not null" json:"reservation_date"`                // 预约日期 YYYY-MM-DD
-	SiteName        string    `json:"site_name"`                                       // 场地号（可选，为空则任意场地）
-	ReservationTime string    `json:"reservation_time"`                                // 时间段（可选，为空则任意时间）
-	ScanInterval    int       `gorm:"not null" json:"scan_interval"`                   // 扫描间隔（分钟）
-	Deadline        time.Time `json:"deadline"`                                        // 预约截止时间（可选，超过此时间未预约到则失败）
-	Status          string    `gorm:"not null;default:'active'" json:"status"`         // 任务状态: active, paused, completed, cancelled, failed
-	SuccessCount    int       `gorm:"default:0" json:"success_count"`                  // 成功预约次数
-	ScanCount       int       `gorm:"default:0" json:"scan_count"`                     // 扫描次数
-	LastScanTime    time.Time `json:"last_scan_time"`                                  // 最后扫描时间
-	FailureReason   string    `json:"failure_reason"`                                  // 失败原因
-	CreatedAt       time.Time `gorm:"autoCreateTime;not null" json:"created_at"`
-	UpdatedAt       time.Time `gorm:"autoUpdateTime" json:"updated_at"`
+	ID                uint      `gorm:"primaryKey" json:"id"`
+	User              string    `gorm:"not null" json:"user"`                            // 任务所属用户
+	TaskID            string    `gorm:"not null;unique" json:"task_id"`                  // 任务唯一标识
+	AccountID1        uint      `gorm:"column:account_id1;not null" json:"account_id_1"` // 第一个预约账号ID
+	AccountID2        uint      `gorm:"column:account_id2;not null" json:"account_id_2"` // 第二个预约账号ID
+	VenueSiteID       string    `gorm:"not null" json:"venue_site_id"`                   // 场馆ID
+	ReservationDate   string    `gorm:"not null" json:"reservation_date"`                // 预约日期 YYYY-MM-DD
+	SiteName          string    `json:"site_name"`                                       // 场地号（可选，为空则任意场地）
+	ReservationTime   string    `json:"reservation_time"`                                // 时间段（可选，为空则任意时间）
+	ScanInterval      int       `gorm:"not null" json:"scan_interval"`                   // 扫描间隔（分钟）
+	Deadline          time.Time `json:"deadline"`                                        // 预约截止时间（可选，超过此时间未预约到则失败）
+	Status            string    `gorm:"not null;default:'active'" json:"status"`         // 任务状态: active, paused, completed, cancelled, failed
+	SuccessCount      int       `gorm:"default:0" json:"success_count"`                  // 成功预约次数
+	ScanCount         int       `gorm:"default:0" json:"scan_count"`                     // 扫描次数
+	LastScanTime      time.Time `json:"last_scan_time"`                                  // 最后扫描时间
+	FailureReason     string    `json:"failure_reason"`                                  // 失败原因
+	TradeNo           string    `json:"trade_no"`                                        // 订单号
+	OrderId           string    `json:"order_id"`                                        // 支付订单 ID
+	ReservationStatus bool      `gorm:"default:false" json:"reservation_status"`         // 是否预约成功
+	CreatedAt         time.Time `gorm:"autoCreateTime;not null" json:"created_at"`
+	UpdatedAt         time.Time `gorm:"autoUpdateTime" json:"updated_at"`
 }
 
 // BargainLogDb 捡漏扫描日志

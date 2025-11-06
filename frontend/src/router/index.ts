@@ -12,6 +12,7 @@ import AccountManagement from "@/views/AccountManagement.vue";
 import UserManagement from "@/views/UserManagement.vue";
 import MyAccount from "@/views/MyAccount.vue";
 import AllReservations from "@/views/AllReservations.vue";
+import UserGuide from "@/views/UserGuide.vue";
 import { isAuthenticated, isAdmin as checkIsAdmin } from "@/utils/auth";
 
 const routes: RouteRecordRaw[] = [
@@ -64,6 +65,12 @@ const routes: RouteRecordRaw[] = [
     path: "/my-account",
     name: "MyAccount",
     component: MyAccount,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: "/user-guide",
+    name: "UserGuide",
+    component: UserGuide,
     meta: { requiresAuth: true },
   },
 ];

@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"strconv"
 	"sync"
 	"time"
 
-	"github.com/google/uuid"
+	"github.com/go-resty/resty/v2"
 	"github.com/robfig/cron/v3"
 	"github.com/valyala/fastjson"
 	"gorm.io/driver/sqlite"
@@ -64,21 +65,35 @@ func createBargainTask(req BargainTaskRequest, username string) (*BargainTaskDb,
 	}
 
 	// 创建任务
-	taskID := uuid.New().String()
+	var taskID string
+	for {
+		candidate := generateTaskId(6)
+		var count int64
+		if err := db.Model(&BargainTaskDb{}).Where("task_id = ?", candidate).Count(&count).Error; err != nil {
+			return nil, fmt.Errorf("生成任务ID失败: %v", err)
+		}
+		if count == 0 {
+			taskID = candidate
+			break
+		}
+	}
 	task := &BargainTaskDb{
-		User:            username,
-		TaskID:          taskID,
-		AccountID1:      req.AccountID1,
-		AccountID2:      req.AccountID2,
-		VenueSiteID:     req.VenueSiteID,
-		ReservationDate: req.ReservationDate,
-		SiteName:        req.SiteName,
-		ReservationTime: req.ReservationTime,
-		ScanInterval:    req.ScanInterval,
-		Deadline:        deadline,
-		Status:          "active",
-		SuccessCount:    0,
-		ScanCount:       0,
+		User:              username,
+		TaskID:            taskID,
+		AccountID1:        req.AccountID1,
+		AccountID2:        req.AccountID2,
+		VenueSiteID:       req.VenueSiteID,
+		ReservationDate:   req.ReservationDate,
+		SiteName:          req.SiteName,
+		ReservationTime:   req.ReservationTime,
+		ScanInterval:      req.ScanInterval,
+		Deadline:          deadline,
+		Status:            "active",
+		SuccessCount:      0,
+		ScanCount:         0,
+		TradeNo:           "",
+		OrderId:           "",
+		ReservationStatus: false,
 	}
 
 	if err := db.Create(task).Error; err != nil {
@@ -231,10 +246,14 @@ func scanAndReserve(taskID string) error {
 	log.Printf("开始扫描场地 [TaskID: %s, 日期: %s]", taskID, task.ReservationDate)
 
 	// 使用第一个账号登录并获取场地信息
-	client, _, err := NewClient(account1.Username, account1.Password)
+	client, account1Info, err := loginWithRetry(account1.Username, account1.Password, 3)
 	if err != nil {
 		logBargainScan(taskID, 0, false, "账号1登录失败", err.Error())
 		return err
+	}
+
+	if account1.Phone == "" && account1Info != nil {
+		account1.Phone = account1Info.Phone
 	}
 
 	// 获取场地信息
@@ -265,7 +284,7 @@ func scanAndReserve(taskID string) error {
 
 	// 获取账号2的BuddyNum和BuddyUserID
 	// 需要登录账号2来获取其BuddyNum
-	client2, buddyInfo, err := NewClient(account2.Username, account2.Password)
+	client2, buddyInfo, err := loginWithRetry(account2.Username, account2.Password, 3)
 	if err != nil {
 		logBargainScan(taskID, len(availableSlots), false, "账号2登录失败", err.Error())
 		log.Printf("账号2登录失败 [TaskID: %s]: %v", taskID, err)
@@ -285,35 +304,44 @@ func scanAndReserve(taskID string) error {
 
 	// 使用账号1作为主预约账号，账号2提供同伴信息
 	// 两个账号一起预约同一个场地
-	success, err := executeReservation(account1, account2, buddyInfo, user.CaptchaAPI, task, slot)
-	if success {
-		// 预约成功，更新任务状态
-		db.Model(&task).Updates(map[string]interface{}{
-			"success_count": task.SuccessCount + 1,
-			"status":        "completed",
-		})
-		logBargainScan(taskID, len(availableSlots), true,
-			fmt.Sprintf("预约成功 [场地: %s, 时间: %s]", slot.SiteName, slot.TimeSlot), "")
-
-		// 停止定时任务
-		stopBargainScheduler(taskID)
-		log.Printf("捡漏任务完成 [TaskID: %s, 场地: %s, 时间: %s]",
-			taskID, slot.SiteName, slot.TimeSlot)
-	} else {
+	reservationInfo, err := executeReservation(account1, account2, buddyInfo, user.CaptchaAPI, task, slot)
+	if err != nil {
 		logBargainScan(taskID, len(availableSlots), false,
 			fmt.Sprintf("预约失败: %v", err), "")
 		log.Printf("预约失败 [TaskID: %s]: %v", taskID, err)
+		return err
 	}
+
+	updateData := map[string]interface{}{
+		"success_count":      task.SuccessCount + 1,
+		"status":             "completed",
+		"trade_no":           reservationInfo.TradeNo,
+		"order_id":           reservationInfo.OrderId,
+		"reservation_status": reservationInfo.ReservationStatus,
+		"last_scan_time":     time.Now(),
+	}
+	if err := db.Model(&task).Updates(updateData).Error; err != nil {
+		log.Printf("更新捡漏任务订单信息失败 [TaskID: %s]: %v", taskID, err)
+	}
+
+	logBargainScan(taskID, len(availableSlots), true,
+		fmt.Sprintf("预约成功 [场地: %s, 时间: %s]", slot.SiteName, slot.TimeSlot), "")
+
+	// 停止定时任务
+	stopBargainScheduler(taskID)
+	log.Printf("捡漏任务完成 [TaskID: %s, 场地: %s, 时间: %s, 订单号: %s]",
+		taskID, slot.SiteName, slot.TimeSlot, reservationInfo.TradeNo)
 
 	return nil
 }
 
 // VenueSlot 可用场地时间段
 type VenueSlot struct {
-	SiteID   string
-	SiteName string
-	TimeID   string
-	TimeSlot string
+	SiteID    string
+	SiteName  string
+	TimeID    string
+	TimeSlot  string
+	BeginTime string
 }
 
 // findAvailableSlots 查找可用的场地时间段
@@ -325,42 +353,77 @@ func findAvailableSlots(venueInfo *fastjson.Value, siteName, reservationTime str
 		return slots
 	}
 
-	// 遍历所有场地
-	spaces := data.GetArray("space")
-	for _, space := range spaces {
-		spaceName := string(space.GetStringBytes("spaceName"))
-		spaceID := string(space.GetStringBytes("id"))
-
-		// 如果指定了场地名称，只查找匹配的场地
-		if siteName != "" && spaceName != siteName {
-			continue
+	type timeRange struct {
+		begin string
+		end   string
+	}
+	timeMap := make(map[string]timeRange)
+	for _, timeInfo := range data.GetArray("spaceTimeInfo") {
+		timeID := strconv.FormatInt(timeInfo.GetInt64("id"), 10)
+		timeMap[timeID] = timeRange{
+			begin: string(timeInfo.GetStringBytes("beginTime")),
+			end:   string(timeInfo.GetStringBytes("endTime")),
 		}
+	}
 
-		// 遍历该场地的所有时间段
-		times := space.GetArray("timeInfo")
-		for _, timeInfo := range times {
-			status := timeInfo.GetInt("status")
-			// status == 1 表示可预约
-			if status == 1 {
-				beginTime := string(timeInfo.GetStringBytes("beginTime"))
-				endTime := string(timeInfo.GetStringBytes("endTime"))
-				timeSlot := beginTime + "-" + endTime
-				timeID := string(timeInfo.GetStringBytes("id"))
+	reservationSpaceInfo := data.Get("reservationDateSpaceInfo")
+	if reservationSpaceInfo == nil {
+		return slots
+	}
 
-				// 如果指定了时间段，只查找匹配的时间段
-				if reservationTime != "" && beginTime != reservationTime {
-					continue
+	reservationSpaceObject, err := reservationSpaceInfo.Object()
+	if err != nil {
+		return slots
+	}
+
+	reservationSpaceObject.Visit(func(_ []byte, spaces *fastjson.Value) {
+		for _, space := range spaces.GetArray() {
+			spaceName := string(space.GetStringBytes("spaceName"))
+			if siteName != "" && spaceName != siteName {
+				continue
+			}
+
+			spaceID := strconv.FormatInt(space.GetInt64("id"), 10)
+
+			spaceObject, err := space.Object()
+			if err != nil {
+				return
+			}
+
+			spaceObject.Visit(func(key []byte, value *fastjson.Value) {
+				keyStr := string(key)
+				switch keyStr {
+				case "spaceName", "venueSpaceGroupId", "venueSiteId", "id":
+					return
+				}
+
+				if value == nil {
+					return
+				}
+
+				if value.GetInt("reservationStatus") != 1 {
+					return
+				}
+
+				timeInfo, ok := timeMap[keyStr]
+				if !ok {
+					return
+				}
+
+				if reservationTime != "" && timeInfo.begin != reservationTime {
+					return
 				}
 
 				slots = append(slots, VenueSlot{
-					SiteID:   spaceID,
-					SiteName: spaceName,
-					TimeID:   timeID,
-					TimeSlot: timeSlot,
+					SiteID:    spaceID,
+					SiteName:  spaceName,
+					TimeID:    keyStr,
+					TimeSlot:  fmt.Sprintf("%s-%s", timeInfo.begin, timeInfo.end),
+					BeginTime: timeInfo.begin,
 				})
-			}
+			})
 		}
-	}
+	})
 
 	return slots
 }
@@ -369,7 +432,7 @@ func findAvailableSlots(venueInfo *fastjson.Value, siteName, reservationTime str
 // account1: 主预约账号
 // account2: 同伴账号
 // buddyInfo: 账号2的同伴信息（包含BuddyNum和UserId）
-func executeReservation(account1 UserInfoDb, account2 UserInfoDb, buddyInfo *UserInfo, captchaAPI string, task BargainTaskDb, slot VenueSlot) (bool, error) {
+func executeReservation(account1 UserInfoDb, account2 UserInfoDb, buddyInfo *UserInfo, captchaAPI string, task BargainTaskDb, slot VenueSlot) (*TaskInfoDb, error) {
 	// 创建临时TaskInfo用于复用现有预约逻辑
 	// 账号1作为主预约账号，账号2提供同伴码
 	taskInfo := TaskInfoDb{
@@ -382,24 +445,25 @@ func executeReservation(account1 UserInfoDb, account2 UserInfoDb, buddyInfo *Use
 		BuddyNum:           buddyInfo.BuddyNum,                  // 账号2的BuddyNum
 		VenueSiteID:        task.VenueSiteID,
 		ReservationDate:    task.ReservationDate,
-		ReservationTime:    slot.TimeSlot,
+		ReservationTime:    slot.BeginTime,
 		SiteName:           slot.SiteName,
-		TaskID:             task.TaskID + "_" + uuid.New().String()[:8],
+		TaskID:             task.TaskID,
 		IsFinished:         false,
 		InstantReservation: true,
 		SiteId:             slot.SiteID,
 		TimeId:             slot.TimeID,
+		ReservationStatus:  false,
 	}
 
 	log.Printf("开始预约 [主账号: %s, 同伴: %s, 场地: %s, 时间: %s]",
 		account1.Username, account2.Username, slot.SiteName, slot.TimeSlot)
 
 	// 使用现有的预约逻辑
-	if err := tyysReserveTask(taskInfo, true); err != nil {
-		return false, err
+	if err := tyysReserveTask(&taskInfo, true); err != nil {
+		return nil, err
 	}
 
-	return true, nil
+	return &taskInfo, nil
 }
 
 // logBargainScan 记录捡漏扫描日志
@@ -421,6 +485,22 @@ func logBargainScan(taskID string, availableSlots int, success bool, message, de
 	if err := db.Create(&logEntry).Error; err != nil {
 		log.Printf("保存日志失败: %v", err)
 	}
+}
+
+func loginWithRetry(username, password string, attempts int) (*resty.Client, *UserInfo, error) {
+	var lastErr error
+	for i := 1; i <= attempts; i++ {
+		client, info, err := NewClient(username, password)
+		if err == nil {
+			return client, info, nil
+		}
+		lastErr = err
+		log.Printf("账号登录失败，准备重试 [用户名: %s, 尝试: %d/%d]: %v", username, i, attempts, err)
+		if i < attempts {
+			time.Sleep(time.Second * time.Duration(i))
+		}
+	}
+	return nil, nil, lastErr
 }
 
 // getBargainTasksByUser 获取用户的所有捡漏任务
@@ -465,15 +545,44 @@ func cancelBargainTask(taskID string, username string) error {
 		return fmt.Errorf("任务不存在")
 	}
 
-	if task.Status == "cancelled" || task.Status == "completed" {
-		return fmt.Errorf("任务已结束")
+	if task.Status == "cancelled" {
+		return nil
 	}
 
-	// 停止定时任务
+	// 获取主账号信息，用于取消订单
+	var account1 UserInfoDb
+	if err := db.Where("id = ?", task.AccountID1).First(&account1).Error; err != nil {
+		return fmt.Errorf("账号信息不存在")
+	}
+
 	stopBargainScheduler(taskID)
 
-	// 更新任务状态
-	if err := db.Model(&task).Update("status", "cancelled").Error; err != nil {
+	updateData := map[string]interface{}{
+		"status":         "cancelled",
+		"failure_reason": "用户手动取消任务",
+	}
+
+	if task.TradeNo != "" && task.ReservationStatus {
+		client, _, err := loginWithRetry(account1.Username, account1.Password, 3)
+		if err != nil {
+			return fmt.Errorf("取消任务失败：账号登录失败 %v", err)
+		}
+
+		cancelResp, err := cancel(client, map[string]string{
+			"venueTradeNo": task.TradeNo,
+		})
+		if err != nil {
+			return fmt.Errorf("取消任务失败：%v", err)
+		}
+
+		if string(cancelResp.GetStringBytes("message")) != "success" {
+			return fmt.Errorf("取消任务失败：%s", cancelResp.GetStringBytes("message"))
+		}
+
+		updateData["reservation_status"] = false
+	}
+
+	if err := db.Model(&task).Updates(updateData).Error; err != nil {
 		return err
 	}
 

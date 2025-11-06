@@ -101,6 +101,8 @@ func router() {
 			bargain.POST("/create", createBargainTaskHandler)
 			// 捡漏任务-获取用户任务列表
 			bargain.GET("/list", getBargainTasksHandler)
+			// 捡漏任务-取消任务（Query 参数方式，兼容普通模式）
+			bargain.GET("/cancel", cancelBargainTaskByQueryHandler)
 			// 捡漏任务-获取任务详情
 			bargain.GET("/:id", getBargainTaskDetailHandler)
 			// 捡漏任务-更新任务

@@ -43,6 +43,11 @@
                 <span>全部预约</span>
             </el-menu-item>
 
+            <el-menu-item index="/user-guide">
+                <el-icon><Document /></el-icon>
+                <span>使用说明</span>
+            </el-menu-item>
+
             <el-menu-item index="/my-account">
                 <el-icon><Setting /></el-icon>
                 <span>账户设置</span>
@@ -75,6 +80,7 @@ import {
     Search,
     Postcard,
     Setting,
+    Document,
 } from "@element-plus/icons-vue";
 import { logout } from "@/utils/api";
 import { isAdmin as checkIsAdmin } from "@/utils/auth";

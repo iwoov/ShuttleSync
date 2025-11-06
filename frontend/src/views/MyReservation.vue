@@ -274,10 +274,181 @@ import {
 import Layout from "@/components/Layout.vue";
 import ReservationTable from "@/components/ReservationTable.vue";
 import { get } from "@/utils/api";
+import { getUsername } from "@/utils/auth";
 
 const reservations = ref<any[]>([]);
 const showAllReservations = ref(false);
 const reservationLoading = ref(false);
+const accountMap = ref<Map<number, any>>(new Map());
+
+const ensureAccountMap = async () => {
+    if (accountMap.value.size > 0) return;
+
+    try {
+        const username = getUsername();
+        const res = await get(
+            "/account/list",
+            username ? { user: username } : undefined,
+        );
+        if (res.message === "success" && Array.isArray(res.data)) {
+            const map = new Map<number, any>();
+            res.data.forEach((account: any) => {
+                const key = Number(account.ID ?? account.id);
+                if (!Number.isNaN(key)) {
+                    map.set(key, account);
+                }
+            });
+            accountMap.value = map;
+        }
+    } catch (error) {
+        console.error("获取账号列表失败:", error);
+    }
+};
+
+const getAccountDisplayName = (accountId?: number) => {
+    if (accountId === undefined || accountId === null) {
+        return "-";
+    }
+    const info = accountMap.value.get(Number(accountId));
+    if (!info) {
+        return `账号${accountId}`;
+    }
+    return info.Lable || info.Username || `账号${accountId}`;
+};
+
+const mapVenueName = (venueSiteId: string, fallback?: string) => {
+    if (venueSiteId === "23") return "风雨操场";
+    if (venueSiteId === "143") return "体育馆";
+    return fallback || "-";
+};
+
+const parseSortValue = (reservation: any) => {
+    const candidates = [
+        reservation.createTime,
+        reservation.date,
+        reservation.updatedAt,
+    ];
+
+    for (const value of candidates) {
+        if (!value) continue;
+        const timestamp = new Date(value).getTime();
+        if (!Number.isNaN(timestamp)) {
+            return timestamp;
+        }
+        const withTime = new Date(`${value}T00:00:00`).getTime();
+        if (!Number.isNaN(withTime)) {
+            return withTime;
+        }
+    }
+    return 0;
+};
+
+const normalizeNormalReservations = (tasks: any[]) => {
+    return tasks.map((task: any) => {
+        let taskStatus = task.IsFinished ? "已完成" : "进行中";
+        let orderStatus = "预约等待";
+
+        if (task.IsFinished) {
+            if (!task.ReservationStatus) {
+                orderStatus = "订单取消";
+            } else {
+                orderStatus =
+                    task.TradeNo &&
+                    task.TradeNo !== "" &&
+                    task.OrderId &&
+                    task.OrderId !== ""
+                        ? "预约成功"
+                        : "预约失败";
+            }
+        }
+
+        return {
+            TaskID: task.TaskID,
+            createTime: task.CreateTime,
+            taskStatus,
+            username: task.Username,
+            password: task.Password,
+            loginUsername: task.Username,
+            loginPassword: task.Password,
+            date: task.ReservationDate,
+            venue: mapVenueName(task.VenueSiteID, task.VenueName),
+            site: task.SiteName,
+            time: task.ReservationTime,
+            OrderId: task.OrderId,
+            TradeNo: task.TradeNo,
+            orderStatus,
+            ReservationStatus: task.ReservationStatus,
+            mode: "普通模式",
+            modeKey: "normal",
+        };
+    });
+};
+
+const normalizeBargainReservations = (tasks: any[]) => {
+    const statusLabelMap: Record<string, string> = {
+        active: "进行中",
+        paused: "暂停中",
+        completed: "已完成",
+        cancelled: "已取消",
+        failed: "失败",
+    };
+
+    const orderStatusMap: Record<string, string> = {
+        completed: "预约成功",
+        failed: "预约失败",
+        cancelled: "已取消",
+    };
+
+    return tasks.map((task: any) => {
+        const accountInfo = `${getAccountDisplayName(task.account_id_1)} / ${getAccountDisplayName(task.account_id_2)}`;
+        const statusKey = task.status || "";
+        const taskStatus = statusLabelMap[statusKey] || "进行中";
+        const venueSiteId = String(
+            task.venue_site_id !== undefined ? task.venue_site_id : "",
+        );
+        const reservationStatus = !!task.reservation_status;
+        const tradeNo = task.trade_no || "";
+        const orderId = task.order_id || "";
+        const primaryAccount =
+            accountMap.value.get(Number(task.account_id_1)) || null;
+        const loginUsername = primaryAccount?.Username || "";
+        const loginPassword = primaryAccount?.Password || "";
+
+        let orderStatus = "预约等待";
+        if (reservationStatus || tradeNo || orderId) {
+            orderStatus = "预约成功";
+        } else if (statusKey === "failed") {
+            orderStatus = "预约失败";
+        } else if (statusKey === "cancelled") {
+            orderStatus = "已取消";
+        } else if (statusKey === "completed") {
+            orderStatus = "预约失败";
+        } else if (orderStatusMap[statusKey]) {
+            orderStatus = orderStatusMap[statusKey];
+        }
+
+        return {
+            TaskID: task.task_id,
+            createTime: task.created_at,
+            updatedAt: task.updated_at,
+            taskStatus,
+            username: accountInfo,
+            password: loginPassword,
+            loginUsername,
+            loginPassword,
+            date: task.reservation_date,
+            venue: mapVenueName(venueSiteId, task.venue_name),
+            site: task.site_name || "-",
+            time: task.reservation_time || "-",
+            OrderId: orderId,
+            orderStatus,
+            ReservationStatus: reservationStatus,
+            TradeNo: tradeNo,
+            mode: "捡漏模式",
+            modeKey: "bargain",
+        };
+    });
+};
 
 const filteredReservations = computed(() => {
     if (!Array.isArray(reservations.value)) {
@@ -482,48 +653,57 @@ const createDonutArc = (startPercentage: number, endPercentage: number) => {
 const fetchReservationList = async () => {
     reservationLoading.value = true;
     try {
-        const data = await get("/task/list");
+        await ensureAccountMap();
 
-        if (data.message === "success" && data.data && data.data.taskInfos) {
-            const mappedData = data.data.taskInfos.map((task: any) => {
-                let taskStatus = task.IsFinished ? "已完成" : "进行中";
-                let orderStatus = "预约等待";
+        const [normalResult, bargainResult] = await Promise.allSettled([
+            get("/task/list"),
+            get("/bargain/list"),
+        ]);
 
-                if (task.IsFinished) {
-                    if (!task.ReservationStatus) {
-                        orderStatus = "订单取消";
-                    } else {
-                        orderStatus =
-                            task.TradeNo &&
-                            task.TradeNo !== "" &&
-                            task.OrderId &&
-                            task.OrderId !== ""
-                                ? "预约成功"
-                                : "预约失败";
-                    }
-                }
+        const normalReservations =
+            normalResult.status === "fulfilled" &&
+            normalResult.value?.message === "success" &&
+            normalResult.value.data?.taskInfos
+                ? normalizeNormalReservations(normalResult.value.data.taskInfos)
+                : [];
 
-                return {
-                    TaskID: task.TaskID,
-                    createTime: task.CreateTime,
-                    taskStatus: taskStatus,
-                    username: task.Username,
-                    password: task.Password,
-                    date: task.ReservationDate,
-                    venue:
-                        task.VenueSiteID === "23"
-                            ? "风雨操场"
-                            : task.VenueSiteID === "143"
-                              ? "体育馆"
-                              : task.VenueName || "-",
-                    site: task.SiteName,
-                    time: task.ReservationTime,
-                    OrderId: task.OrderId,
-                    orderStatus: orderStatus,
-                    ReservationStatus: task.ReservationStatus,
-                };
-            });
-            reservations.value = mappedData;
+        if (normalResult.status === "rejected") {
+            console.error("获取普通模式预约失败:", normalResult.reason);
+        } else if (
+            normalResult.status === "fulfilled" &&
+            normalResult.value?.message !== "success"
+        ) {
+            console.warn("获取普通模式预约返回异常:", normalResult.value);
+        }
+
+        const bargainReservations =
+            bargainResult.status === "fulfilled" &&
+            bargainResult.value?.message === "success" &&
+            Array.isArray(bargainResult.value.data)
+                ? normalizeBargainReservations(bargainResult.value.data)
+                : [];
+
+        if (bargainResult.status === "rejected") {
+            console.error("获取捡漏模式预约失败:", bargainResult.reason);
+        } else if (
+            bargainResult.status === "fulfilled" &&
+            bargainResult.value?.message !== "success"
+        ) {
+            console.warn("获取捡漏模式预约返回异常:", bargainResult.value);
+        }
+
+        const combinedReservations = [
+            ...normalReservations,
+            ...bargainReservations,
+        ].sort((a, b) => parseSortValue(b) - parseSortValue(a));
+
+        reservations.value = combinedReservations;
+
+        if (
+            normalResult.status === "rejected" &&
+            bargainResult.status === "rejected"
+        ) {
+            ElMessage.error("获取预约列表失败");
         }
     } catch (error) {
         console.error("Fetch reservation error:", error);
@@ -534,7 +714,7 @@ const fetchReservationList = async () => {
     }
 };
 
-const cancelReservation = async (taskId: string) => {
+const cancelReservation = async (reservation: any) => {
     try {
         await ElMessageBox.confirm("确定要取消此预约吗？", "提示", {
             confirmButtonText: "确定",
@@ -542,12 +722,31 @@ const cancelReservation = async (taskId: string) => {
             type: "warning",
         });
 
-        const data = await get("/task/cancel", { task_id: taskId });
-        if (data.message === "success") {
-            ElMessage.success(data.data || "预约取消成功");
+        const cancelEndpoint =
+            reservation.modeKey === "bargain"
+                ? "/bargain/cancel"
+                : "/task/cancel";
+
+        const response = await get(cancelEndpoint, {
+            task_id: reservation.TaskID,
+        });
+
+        if (response.message === "success") {
+            ElMessage.success(
+                response.data ||
+                    (reservation.modeKey === "bargain"
+                        ? "捡漏任务已取消"
+                        : "预约取消成功"),
+            );
             await fetchReservationList();
         } else {
-            ElMessage.error(data.data || "取消预约失败");
+            ElMessage.error(
+                response.data ||
+                    response.error ||
+                    (reservation.modeKey === "bargain"
+                        ? "取消捡漏任务失败"
+                        : "取消预约失败"),
+            );
         }
     } catch (error) {
         if (error !== "cancel") {

@@ -2,14 +2,15 @@ package main
 
 import (
 	"fmt"
-	"github.com/go-resty/resty/v2"
-	"github.com/robfig/cron/v3"
-	"github.com/valyala/fastjson"
 	"log"
 	"math/rand"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/go-resty/resty/v2"
+	"github.com/robfig/cron/v3"
+	"github.com/valyala/fastjson"
 )
 
 // getBuddyId 获取同伴id 不同于userid
@@ -226,7 +227,11 @@ func creatTtyysReserveTask(taskId string) error {
 	if taskInfo.InstantReservation {
 		// 启动一个协程执行预约任务
 		log.Println("立即预约为true，执行立即预约任务")
-		go tyysReserveTask(taskInfo, true)
+		go func(info TaskInfoDb) {
+			if err := tyysReserveTask(&info, true); err != nil {
+				log.Printf("预约任务执行失败：%v", err)
+			}
+		}(taskInfo)
 	} else {
 		// 启动一个协程执行延时预约任务
 		log.Println("立即预约为false，执行延时预约任务")
@@ -259,7 +264,8 @@ func tyysReserveDelayTask(taskInfo TaskInfoDb) error {
 		var lastErr error
 
 		for i := 0; i < maxRetries; i++ {
-			err := tyysReserveTask(taskInfo, false)
+			taskAttempt := taskInfo
+			err := tyysReserveTask(&taskAttempt, false)
 			if err == nil {
 				log.Printf("预约任务执行成功")
 				return
@@ -295,13 +301,18 @@ func tyysGetOrderCode(username, password, tradeId string) (string, error) {
 	return orderCode, nil
 }
 
-func tyysReserveTask(taskInfo TaskInfoDb, isInstantReservation bool) error {
+func tyysReserveTask(taskInfo *TaskInfoDb, isInstantReservation bool) error {
 	// 在函数开始时使用 defer 确保在函数返回时更新状态
 	defer func() {
 		if err := updateTask(taskInfo.TaskID, "is_finished", true); err != nil {
 			log.Printf("更新任务状态失败：%v", err)
 		}
 	}()
+
+	// 每次执行前重置关键状态
+	taskInfo.TradeNo = ""
+	taskInfo.OrderId = ""
+	taskInfo.ReservationStatus = false
 
 	// 登录预约账号
 	client, _, loginErr := NewClient(taskInfo.Username, taskInfo.Password)
@@ -311,7 +322,7 @@ func tyysReserveTask(taskInfo TaskInfoDb, isInstantReservation bool) error {
 	log.Printf("登录成功，用户名：%s", taskInfo.Username)
 
 	// 获取同伴id
-	getBuddyErr := getBuddyId(client, &taskInfo)
+	getBuddyErr := getBuddyId(client, taskInfo)
 	if getBuddyErr != nil {
 		return fmt.Errorf("获取同伴id失败：%v", getBuddyErr)
 	}
@@ -327,69 +338,90 @@ func tyysReserveTask(taskInfo TaskInfoDb, isInstantReservation bool) error {
 		log.Printf("开始提交预约信息，当前时间：%s", time.Now().Format("2006-01-02 15:04:05"))
 	}
 	//  获取预约场地信息
-	getVenueInfoErr := getVenueInfo(client, &taskInfo)
+	getVenueInfoErr := getVenueInfo(client, taskInfo)
 	if getVenueInfoErr != nil {
 		return fmt.Errorf("获取场地信息失败：%v", getVenueInfoErr)
 	}
 	log.Printf("获取场地信息成功，场地信息：%s", taskInfo.SiteName)
-	// 提交预约信息
-	confirmVenueErr := confirmVenue(client, &taskInfo)
-	if confirmVenueErr != nil {
-		log.Printf("提交预约信息失败，场地信息：%s", confirmVenueErr)
-		return fmt.Errorf("提交预约信息失败：%v", confirmVenueErr)
-	}
-	log.Printf("提交预约信息成功，场地信息：%s", taskInfo.SiteName)
-	// 获取验证码认证
-	getCaptchaTokenErr := getCaptchaToken(client, &taskInfo)
-	if getCaptchaTokenErr != nil {
-		return fmt.Errorf("获取验证码失败：%v", getCaptchaTokenErr)
-	}
-	log.Println("验证码打码成功")
-	//等待提交订单，后端设置小于1.5s不让提交
-	time.Sleep(1500 * time.Millisecond)
-	//提交订单
-	submitResponse, submitOrderErr := submitOrder(client, &taskInfo)
-	if submitOrderErr != nil {
-		return fmt.Errorf("提交订单失败：%v", submitOrderErr)
-	}
-	if submitResponse.GetInt64("code") != 200 {
-		message := submitResponse.GetStringBytes("message")
-		return fmt.Errorf("提交订单失败：%s", message)
-	} else {
-		// 获取订单号
-		taskInfo.TradeNo = string(submitResponse.GetStringBytes("data", "orderInfo", "tradeNo")) // 订单号
-		// 日志输出订单号
+	const captchaAttempts = 3
+	var lastErr error
+	var lastMessage string
+
+	for attempt := 1; attempt <= captchaAttempts; attempt++ {
+		if attempt > 1 {
+			log.Printf("准备重新提交预约订单 [尝试: %d/%d]", attempt, captchaAttempts)
+			time.Sleep(time.Second * time.Duration(attempt))
+		}
+
+		if err := confirmVenue(client, taskInfo); err != nil {
+			lastErr = err
+			log.Printf("提交预约信息失败 [尝试: %d/%d]：%v", attempt, captchaAttempts, err)
+			continue
+		}
+		log.Printf("提交预约信息成功，场地信息：%s", taskInfo.SiteName)
+
+		if err := getCaptchaToken(client, taskInfo); err != nil {
+			lastErr = err
+			log.Printf("获取验证码失败 [尝试: %d/%d]：%v", attempt, captchaAttempts, err)
+			continue
+		}
+
+		time.Sleep(1500 * time.Millisecond)
+
+		submitResponse, err := submitOrder(client, taskInfo)
+		if err != nil {
+			lastErr = err
+			log.Printf("提交订单失败 [尝试: %d/%d]：%v", attempt, captchaAttempts, err)
+			continue
+		}
+
+		if submitResponse.GetInt64("code") != 200 {
+			message := submitResponse.GetStringBytes("message")
+			lastMessage = string(message)
+			log.Printf("提交订单失败 [尝试: %d/%d]：%s", attempt, captchaAttempts, message)
+			if strings.Contains(lastMessage, "验证码") && attempt < captchaAttempts {
+				continue
+			}
+			return fmt.Errorf("提交订单失败：%s", lastMessage)
+		}
+
+		taskInfo.TradeNo = string(submitResponse.GetStringBytes("data", "orderInfo", "tradeNo"))
 		log.Printf("提交订单成功，trade_num：%s", taskInfo.TradeNo)
-		// 获取订单详情
+
 		oderDetailResponse, oderDetailErr := fetchOderdetail(client, taskInfo.TradeNo)
 		if oderDetailErr != nil {
 			return fmt.Errorf("获取订单详情失败：%v", oderDetailErr)
 		}
-		// 获取交易号
-		taskInfo.OrderId = strconv.FormatInt(oderDetailResponse.Get("data").GetInt64("orderId"), 10) // 交易号
+
+		taskInfo.OrderId = strconv.FormatInt(oderDetailResponse.Get("data").GetInt64("orderId"), 10)
 		log.Printf("获取订单详情成功，order_id：%s", taskInfo.OrderId)
-		// 支付订单
-		payOrderErr := payOrder(client, taskInfo)
-		if payOrderErr != nil {
+
+		if payOrderErr := payOrder(client, *taskInfo); payOrderErr != nil {
 			return fmt.Errorf("支付订单失败：%v", payOrderErr)
 		}
 		log.Printf("支付订单成功，订单号：%s", taskInfo.TradeNo)
-		// 更新数据库中订单状态
-		updateTaskInfoErr := updateTask(taskInfo.TaskID, "reservation_status", true)
-		if updateTaskInfoErr != nil {
-			return fmt.Errorf("更新订单状态失败：%v", updateTaskInfoErr)
+
+		taskInfo.ReservationStatus = true
+
+		if updateErr := updateTask(taskInfo.TaskID, "reservation_status", true); updateErr != nil {
+			return fmt.Errorf("更新订单状态失败：%v", updateErr)
 		}
-		// 更新数据库 // trade_no
-		updateTaskInfoErr = updateTask(taskInfo.TaskID, "trade_no", taskInfo.TradeNo)
-		if updateTaskInfoErr != nil {
-			return fmt.Errorf("更新任务信息失败：%v", updateTaskInfoErr)
+		if updateErr := updateTask(taskInfo.TaskID, "trade_no", taskInfo.TradeNo); updateErr != nil {
+			return fmt.Errorf("更新任务信息失败：%v", updateErr)
 		}
-		// 更新数据库 // order_id 获取二维码
-		updateTaskInfoErr = updateTask(taskInfo.TaskID, "order_id", taskInfo.OrderId)
-		if updateTaskInfoErr != nil {
-			return fmt.Errorf("更新任务信息失败：%v", updateTaskInfoErr)
+		if updateErr := updateTask(taskInfo.TaskID, "order_id", taskInfo.OrderId); updateErr != nil {
+			return fmt.Errorf("更新任务信息失败：%v", updateErr)
 		}
+
 		log.Printf("恭喜%s，您的场地预约成功啦！%s %s %s", taskInfo.Username, taskInfo.ReservationDate, taskInfo.SiteName, taskInfo.ReservationTime)
 		return nil
 	}
+
+	if lastMessage != "" {
+		return fmt.Errorf("提交订单失败：%s", lastMessage)
+	}
+	if lastErr != nil {
+		return fmt.Errorf("提交订单失败：%v", lastErr)
+	}
+	return fmt.Errorf("提交订单失败：未知原因")
 }
